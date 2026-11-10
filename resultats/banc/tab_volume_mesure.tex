@@ -1,0 +1,15 @@
+\begin{table}[H]
+\centering
+\caption{Volume mesuré des échanges (octets applicatifs, médiane)}
+\label{tab:volume-mesure}
+\begin{tabularx}{\textwidth}{|L{0.40\textwidth}|X|X|}
+\hline
+\textbf{Mécanisme} & \textbf{Établissement de session} & \textbf{Session avec une instruction}\\ \hline
+\aka & 384 & 884\\ \hline
+TLS~1.3, authentification mutuelle (ECDSA P-256, chaîne de 2) & 2\,618 & 4\,879\\ \hline
+\end{tabularx}
+\begin{flushleft}\footnotesize
+\smallskip
+Octets émis et reçus au-dessus de TCP, cadrage compris ; en-têtes TCP/IP exclus. Pour \aka, 378 octets de charge utile (\S\ref{sec:budget}) et 6 octets de cadrage. Plage observée sur toutes les sessions : \aka 384--384, TLS~1.3 2\,616--2\,620.
+\end{flushleft}
+\end{table}

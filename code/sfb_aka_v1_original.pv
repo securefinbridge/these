@@ -1,0 +1,69 @@
+(* ============================================================
+   SFB-AKA : SecureFinBridge Authenticated Key Agreement
+   Modele en pi-calcul applique, syntaxe ProVerif
+   Verification : proverif sfb_aka.pv
+   ============================================================ *)
+
+(* ---------- Types et canaux ---------- *)
+type pkey. type skey. type element. type exponent. type key.
+free reseau : channel.                  (* canal public, controle par l'adversaire *)
+
+(* ---------- Primitives cryptographiques ---------- *)
+fun pk(skey) : pkey.
+fun sign(bitstring, skey) : bitstring.
+reduc forall m : bitstring, k : skey; verifier(sign(m, k), pk(k)) = m.
+
+fun expo(element, exponent) : element.
+equation forall g : element, x : exponent, y : exponent;
+         expo(expo(g, x), y) = expo(expo(g, y), x).
+
+fun kdf(element, bitstring) : key.
+fun aead(bitstring, key) : bitstring.
+reduc forall m : bitstring, k : key; ouvrir(aead(m, k), k) = m.
+
+(* ---------- Evenements et proprietes de securite ---------- *)
+event initieSession(pkey, pkey, key).
+event termineSession(pkey, pkey, key).
+free montant : bitstring [private].
+
+(* P1 : authentification mutuelle (accord injectif) *)
+query a : pkey, b : pkey, k : key;
+      inj-event(termineSession(a, b, k)) ==> inj-event(initieSession(a, b, k)).
+
+(* P2 : confidentialite des donnees de transaction *)
+query attacker(montant).
+
+(* ---------- Processus initiateur : plateforme Mobile Money ---------- *)
+let initiateur(skI : skey, pkR : pkey, g : element) =
+    new x : exponent;
+    new nI : bitstring;
+    let X = expo(g, x) in
+    out(reseau, (pk(skI), X, nI));
+    in(reseau, (Y : element, nR : bitstring, sigR : bitstring));
+    let transcription = (pk(skI), X, nI, Y, nR) in
+    if verifier(sigR, pkR) = transcription then
+    let cle = kdf(expo(Y, x), transcription) in
+    event initieSession(pk(skI), pkR, cle);
+    out(reseau, sign(transcription, skI));
+    out(reseau, aead(montant, cle)).
+
+(* ---------- Processus repondant : systeme Core Banking ---------- *)
+let repondant(skR : skey, pkI : pkey, g : element) =
+    in(reseau, (pkA : pkey, X : element, nI : bitstring));
+    new y : exponent;
+    new nR : bitstring;
+    let Y = expo(g, y) in
+    let transcription = (pkA, X, nI, Y, nR) in
+    out(reseau, (Y, nR, sign(transcription, skR)));
+    in(reseau, sigI : bitstring);
+    if verifier(sigI, pkA) = transcription then
+    let cle = kdf(expo(X, y), transcription) in
+    event termineSession(pkA, pk(skR), cle).
+
+(* ---------- Systeme global ---------- *)
+(* La replication (!) garantit un nombre non borne de sessions concurrentes,
+   condition necessaire pour detecter les attaques par entrelacement.        *)
+process
+    new skI : skey; new skR : skey; new g : element;
+    out(reseau, (pk(skI), pk(skR), g));
+    ( !initiateur(skI, pk(skR), g) | !repondant(skR, pk(skI), g) )

@@ -1,0 +1,5 @@
+LAN : connexion TCP vers 7000 (1 aller-retour), 10/10 réussies, médiane 0.7 ms, min 0.3, max 0.9
+3G : connexion TCP vers 7000 (1 aller-retour), 10/10 réussies, médiane 300.3 ms, min 254.8, max 344.9
+3G-DEGRADE : connexion TCP vers 7000 (1 aller-retour), 10/10 réussies, médiane 598.5 ms, min 438.9, max 781.3
+EDGE : connexion TCP vers 7000 (1 aller-retour), 10/10 réussies, médiane 590.3 ms, min 451.1, max 674.4
+GPRS : connexion TCP vers 7000 (1 aller-retour), 10/10 réussies, médiane 888.7 ms, min 716.5, max 1233.6

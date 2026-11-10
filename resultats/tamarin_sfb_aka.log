@@ -1,0 +1,827 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification Tamarin
+# Date      : 2026-11-05 14:55:41 GMT
+# Machine   : Linux 6.18.44-fc-v236 x86_64 —  Intel(R) Xeon(R) Processor @ 2.30GHz
+# Tamarin   : Tamarin version 1.12.0
+# Maude     : 3.5.1
+# Délai     : 300 s par lemme
+# ===========================================================
+
+## ---- executabilite_session (7 s, code de sortie 0)
+lemma executabilite_session:
+  exists-trace
+  "∃ I R k #i #j.
+    ((InitiateurTermine( I, R, k ) @ #i) ∧
+     (RepondantTermine( I, R, k ) @ #j)) ∧
+    (¬(∃ A #r. Compromis( A ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ I R k #i #j.
+  (InitiateurTermine( I, R, k ) @ #i) ∧ (RepondantTermine( I, R, k ) @ #j)
+ ∧
+  ∀ A #r. (Compromis( A ) @ #r) ⇒ ⊥"
+*/
+simplify
+solve( InitiateurTermine( I, R, k ) @ #i )
+  case I_Recoit_M2_Emet_M3___VARIANT_11
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( RepondantTermine( $I, $R,
+                             kdf(x.1^(~x*x.2), <'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR>)
+           ) @ #j )
+      case R_Recoit_M3___VARIANT_2
+      solve( Etat_R_1( $I, $R, tr,
+                       kdf(x.1^(~x*x.2), <'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR>), pk(x.3)
+             ) ▶₀ #j )
+        case R_Recoit_M1_Emet_M2___VARIANT_2
+        solve( !KU( ~nI ) @ #vk.18 )
+          case I_Emet_M1
+          solve( !KU( ~nR ) @ #vk.6 )
+            case R_Recoit_M1_Emet_M2___VARIANT_2
+            solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                             >,
+                             ~ltk.1)
+                   ) @ #vk.10 )
+              case R_Recoit_M1_Emet_M2___VARIANT_2
+              solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                               >,
+                               ~ltk)
+                     ) @ #vk.14 )
+                case I_Recoit_M2_Emet_M3___VARIANT_11
+                solve( !KU( 'g'^~y ) @ #vk.11 )
+                  case R_Recoit_M1_Emet_M2___VARIANT_2
+                  solve( !KU( mac(<'fin', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>,
+                                  kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>))
+                         ) @ #vk.15 )
+                    case I_Recoit_M2_Emet_M3___VARIANT_11
+                    solve( !KU( 'g'^~x ) @ #vk.18 )
+                      case I_Emet_M1
+                      SOLVED // trace found
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   executabilite_session (exists-trace): verified (13 steps)
+
+## ---- P1a_repondant_authentifie_initiateur (7 s, code de sortie 0)
+lemma P1a_repondant_authentifie_initiateur:
+  all-traces
+  "∀ I R k #j.
+    ((RepondantTermine( I, R, k ) @ #j) ∧
+     (¬(∃ #c. (Compromis( I ) @ #c) ∧ (#c < #j)))) ⇒
+    (∃ #i.
+      ((InitiateurEngage( I, R, k ) @ #i) ∧ (#i < #j)) ∧
+      (¬(∃ I2 R2 #j2. (RepondantTermine( I2, R2, k ) @ #j2) ∧ (¬(#j2 = #j)))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #j.
+  (RepondantTermine( I, R, k ) @ #j)
+ ∧
+  (∀ #c. (Compromis( I ) @ #c) ⇒ ¬(#c < #j)) ∧
+  (∀ #i.
+    (InitiateurEngage( I, R, k ) @ #i)
+   ⇒
+    ((¬(#i < #j)) ∨
+     (∃ I2 R2 #j2. (RepondantTermine( I2, R2, k ) @ #j2) ∧ ¬(#j2 = #j))))"
+*/
+simplify
+solve( RepondantTermine( I, R, k ) @ #j )
+  case R_Recoit_M3___VARIANT_2
+  solve( Etat_R_1( $I, $R, tr, k, pk(x) ) ▶₀ #j )
+    case R_Recoit_M1_Emet_M2___VARIANT_1
+    solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>,
+                     ~ltk)
+           ) @ #vk.3 )
+      case I_Recoit_M2_Emet_M3___VARIANT_11
+      by contradiction /* non-normal terms */
+    next
+      case I_Recoit_M2_Emet_M3___VARIANT_9
+      by contradiction /* non-normal terms */
+    next
+      case c_sign
+      solve( !KU( ~ltk ) @ #vk.16 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  next
+    case R_Recoit_M1_Emet_M2___VARIANT_2
+    solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, x^x.1, nI, 'g'^~y, ~nR>,
+                     ~ltk)
+           ) @ #vk.3 )
+      case I_Recoit_M2_Emet_M3___VARIANT_11
+      solve( (#j2 < #j)  ∥ (#j < #j2) )
+        case case_1
+        solve( RepondantTermine( I2, R2,
+                                 kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>)
+               ) @ #j2 )
+          case R_Recoit_M3___VARIANT_2
+          solve( Etat_R_1( $I.1, $R.1, tr,
+                           kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>), pk(x.1)
+                 ) ▶₀ #j2 )
+            case R_Recoit_M1_Emet_M2___VARIANT_2
+            by contradiction /* cyclic */
+          qed
+        qed
+      next
+        case case_2
+        solve( RepondantTermine( I2, R2,
+                                 kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>)
+               ) @ #j2 )
+          case R_Recoit_M3___VARIANT_2
+          solve( Etat_R_1( $I.1, $R.1, tr,
+                           kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>), pk(x.1)
+                 ) ▶₀ #j2 )
+            case R_Recoit_M1_Emet_M2___VARIANT_2
+            by contradiction /* cyclic */
+          qed
+        qed
+      qed
+    next
+      case I_Recoit_M2_Emet_M3___VARIANT_9
+      by contradiction /* non-normal terms */
+    next
+      case c_sign
+      solve( !KU( ~ltk ) @ #vk.16 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  next
+    case R_Recoit_M1_Emet_M2___VARIANT_3
+    solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, DH_neutral, nI, 'g'^~y, 
+                      ~nR>,
+                     ~ltk)
+           ) @ #vk.3 )
+      case c_sign
+      solve( !KU( ~ltk ) @ #vk.16 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   P1a_repondant_authentifie_initiateur (all-traces): verified (22 steps)
+
+## ---- P1b_initiateur_authentifie_repondant (8 s, code de sortie 0)
+lemma P1b_initiateur_authentifie_repondant:
+  all-traces
+  "∀ I R k #j.
+    ((InitiateurTermine( I, R, k ) @ #j) ∧
+     (¬(∃ #c. (Compromis( R ) @ #c) ∧ (#c < #j)))) ⇒
+    (∃ #i.
+      ((RepondantEngage( I, R, k ) @ #i) ∧ (#i < #j)) ∧
+      (¬(∃ I2 R2 #j2.
+          (InitiateurTermine( I2, R2, k ) @ #j2) ∧ (¬(#j2 = #j)))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #j.
+  (InitiateurTermine( I, R, k ) @ #j)
+ ∧
+  (∀ #c. (Compromis( R ) @ #c) ⇒ ¬(#c < #j)) ∧
+  (∀ #i.
+    (RepondantEngage( I, R, k ) @ #i)
+   ⇒
+    ((¬(#i < #j)) ∨
+     (∃ I2 R2 #j2. (InitiateurTermine( I2, R2, k ) @ #j2) ∧ ¬(#j2 = #j))))"
+*/
+simplify
+solve( InitiateurTermine( I, R, k ) @ #j )
+  case I_Recoit_M2_Emet_M3___VARIANT_10
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, z^inv(~x), 
+                      nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_11
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR
+                     >,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case R_Recoit_M1_Emet_M2___VARIANT_1
+      by contradiction /* non-normal terms */
+    next
+      case R_Recoit_M1_Emet_M2___VARIANT_2
+      solve( (#j2 < #j)  ∥ (#j < #j2) )
+        case case_1
+        solve( InitiateurTermine( I2, R2,
+                                  kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>)
+               ) @ #j2 )
+          case I_Recoit_M2_Emet_M3___VARIANT_11
+          solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j2 )
+            case I_Emet_M1
+            by contradiction /* cyclic */
+          qed
+        qed
+      next
+        case case_2
+        solve( InitiateurTermine( I2, R2,
+                                  kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>)
+               ) @ #j2 )
+          case I_Recoit_M2_Emet_M3___VARIANT_11
+          solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j2 )
+            case I_Emet_M1
+            by contradiction /* cyclic */
+          qed
+        qed
+      qed
+    next
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_12
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                      x.1^inv((~x*x.2)), nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_13
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                      x.1^(x.2*inv(~x)), nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_14
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                      x.1^(x.2*inv((~x*x.3))), nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_8
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, DH_neutral, 
+                      nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_9
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+    case I_Emet_M1
+    solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+                     ~ltk.1)
+           ) @ #vk.6 )
+      case R_Recoit_M1_Emet_M2___VARIANT_1
+      by contradiction /* non-normal terms */
+    next
+      case R_Recoit_M1_Emet_M2___VARIANT_2
+      by contradiction /* non-normal terms */
+    next
+      case c_sign
+      solve( !KU( ~ltk.1 ) @ #vk.9 )
+        case Compromission_Cle_Long_Terme
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   P1b_initiateur_authentifie_repondant (all-traces): verified (40 steps)
+
+## ---- P2_secret_montant (8 s, code de sortie 0)
+lemma P2_secret_montant:
+  all-traces
+  "∀ m I R #i.
+    (((Secret( m, I, R ) @ #i) ∧
+      (¬(∃ #c. (Compromis( I ) @ #c) ∧ (#c < #i)))) ∧
+     (¬(∃ #c. (Compromis( R ) @ #c) ∧ (#c < #i)))) ⇒
+    (¬(∃ #r. K( m ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ m I R #i.
+  (Secret( m, I, R ) @ #i)
+ ∧
+  (∀ #c. (Compromis( I ) @ #c) ⇒ ¬(#c < #i)) ∧
+  (∀ #c. (Compromis( R ) @ #c) ⇒ ¬(#c < #i)) ∧
+  (∃ #r. (K( m ) @ #r))"
+*/
+simplify
+solve( !KU( ~montant ) @ #vk )
+  case I_Emet_Instruction_case_1
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, DH_neutral, 
+                    nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.21 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_2
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case R_Recoit_M1_Emet_M2___VARIANT_1
+    by contradiction /* non-normal terms */
+  next
+    case R_Recoit_M1_Emet_M2___VARIANT_2
+    by contradiction /* non-normal terms */
+  next
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_3
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, z^inv(~x), 
+                    nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_4
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x.1, ~nI, x^x.2, nR
+                   >,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case R_Recoit_M1_Emet_M2___VARIANT_1
+    by contradiction /* non-normal terms */
+  next
+    case R_Recoit_M1_Emet_M2___VARIANT_2
+    solve( !KU( 'g'^(~x*~y) ) @ #vk.12 )
+      case I_Emet_M1
+      by solve( !KU( ~y ) @ #vk.25 )
+    next
+      case R_Recoit_M1_Emet_M2___VARIANT_2
+      by solve( !KU( ~x ) @ #vk.25 )
+    next
+      case c_exp
+      by solve( !KU( ~x ) @ #vk.27 )
+    qed
+  next
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_5
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x.2, ~nI, 
+                    x^inv((x.1*~x.2)), nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_6
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x.2, ~nI, 
+                    x^(x.1*inv(~x.2)), nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+next
+  case I_Emet_Instruction_case_7
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x.3, ~nI, 
+                    x^(x.1*inv((x.2*~x.3))), nR>,
+                   ~ltk.1)
+         ) @ #vk.10 )
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.22 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+qed
+
+# résumé outil :   P2_secret_montant (all-traces): verified (30 steps)
+
+## ---- P6_pfs (7 s, code de sortie 0)
+lemma P6_pfs:
+  all-traces
+  "∀ I R k #i.
+    (((SessionI( I, R, k ) @ #i) ∧
+      (¬(∃ #c. (Compromis( I ) @ #c) ∧ (#c < #i)))) ∧
+     (¬(∃ #c. (Compromis( R ) @ #c) ∧ (#c < #i)))) ⇒
+    (¬(∃ #r. K( k ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #i.
+  (SessionI( I, R, k ) @ #i)
+ ∧
+  (∀ #c. (Compromis( I ) @ #c) ⇒ ¬(#c < #i)) ∧
+  (∀ #c. (Compromis( R ) @ #c) ⇒ ¬(#c < #i)) ∧
+  (∃ #r. (K( k ) @ #r))"
+*/
+simplify
+solve( SessionI( I, R, k ) @ #i )
+  case I_Recoit_M2_Emet_M3___VARIANT_10
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(z, <'tr', $I, $R, 'g'^~x, ~nI, z^inv(~x), nR>) ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, z^inv(~x), 
+                        nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_11
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(x.1^(~x*x.2), <'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR>)
+           ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR
+                       >,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case R_Recoit_M1_Emet_M2___VARIANT_1
+        by contradiction /* non-normal terms */
+      next
+        case R_Recoit_M1_Emet_M2___VARIANT_2
+        solve( !KU( 'g'^(~x*~y) ) @ #vk.10 )
+          case I_Emet_M1
+          by solve( !KU( ~y ) @ #vk.24 )
+        next
+          case R_Recoit_M1_Emet_M2___VARIANT_2
+          by solve( !KU( ~x ) @ #vk.24 )
+        next
+          case c_exp
+          by solve( !KU( ~x ) @ #vk.26 )
+        qed
+      next
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_12
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(x.1^inv(x.2),
+                    <'tr', $I, $R, 'g'^~x, ~nI, x.1^inv((~x*x.2)), nR>)
+           ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                        x.1^inv((~x*x.2)), nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_13
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(x.1^x.2,
+                    <'tr', $I, $R, 'g'^~x, ~nI, x.1^(x.2*inv(~x)), nR>)
+           ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                        x.1^(x.2*inv(~x)), nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_14
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(x.1^(x.2*inv(x.3)),
+                    <'tr', $I, $R, 'g'^~x, ~nI, x.1^(x.2*inv((~x*x.3))), nR>)
+           ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 
+                        x.1^(x.2*inv((~x*x.3))), nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_8
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(DH_neutral, <'tr', $I, $R, 'g'^~x, ~nI, DH_neutral, nR>)
+           ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, DH_neutral, 
+                        nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.20 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+next
+  case I_Recoit_M2_Emet_M3___VARIANT_9
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( !KU( kdf(Y^~x, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>) ) @ #vk )
+      case c_kdf
+      solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+                       ~ltk.1)
+             ) @ #vk.8 )
+        case R_Recoit_M1_Emet_M2___VARIANT_1
+        by contradiction /* non-normal terms */
+      next
+        case R_Recoit_M1_Emet_M2___VARIANT_2
+        by contradiction /* non-normal terms */
+      next
+        case c_sign
+        solve( !KU( ~ltk.1 ) @ #vk.21 )
+          case Compromission_Cle_Long_Terme
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   P6_pfs (all-traces): verified (44 steps)
+
+## ---- executabilite (88 s, code de sortie 0)
+lemma executabilite:
+  exists-trace
+  "∃ I R k sid c m #i #j #l.
+    (((InitiateurTermine( I, R, k ) @ #i) ∧
+      (RepondantTermine( I, R, k ) @ #j)) ∧
+     (InstructionRecue( sid, c, m ) @ #l)) ∧
+    (¬(∃ A #r. Compromis( A ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ I R k sid c m #i #j #l.
+  (InitiateurTermine( I, R, k ) @ #i) ∧
+  (RepondantTermine( I, R, k ) @ #j) ∧
+  (InstructionRecue( sid, c, m ) @ #l)
+ ∧
+  ∀ A #r. (Compromis( A ) @ #r) ⇒ ⊥"
+*/
+simplify
+solve( InitiateurTermine( I.1, R.1, k.1 ) @ #i )
+  case I_Recoit_M2_Emet_M3___VARIANT_11
+  solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+    case I_Emet_M1
+    solve( RepondantTermine( $I, $R,
+                             kdf(x.1^(~x*x.2), <'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR>)
+           ) @ #j )
+      case R_Recoit_M3___VARIANT_2
+      solve( Etat_R_1( $I, $R, tr,
+                       kdf(x.1^(~x*x.2), <'tr', $I, $R, 'g'^~x, ~nI, x.1^x.2, nR>), pk(x.3)
+             ) ▶₀ #j )
+        case R_Recoit_M1_Emet_M2___VARIANT_2
+        solve( Etat_R_2( $I.1, $R.1, k, c ) ▶₀ #l )
+          case R_Recoit_M3___VARIANT_2_case_2
+          solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I.1, $R.1, x.1^x.2, nI.1, 
+                            'g'^~y.1, ~nR.1>,
+                           ~ltk.2)
+                 ) @ #vk.25 )
+            case I_Recoit_M2_Emet_M3___VARIANT_11
+            solve( !KU( senc(<
+                              h(<'sid', 
+                                 kdf('g'^(~x.1*~y.1),
+                                     <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1>)
+                                >), 
+                              'zero', m, benef>,
+                             kdf('g'^(~x.1*~y.1),
+                                 <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1>))
+                   ) @ #vk.2 )
+              case I_Emet_Instruction
+              solve( Etat_I_2( $I.1, $R.1,
+                               kdf('g'^(~x.1*~y.1),
+                                   <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1>),
+                               'zero'
+                     ) ▶₀ #vr.12 )
+                case I_Recoit_M2_Emet_M3___VARIANT_11
+                solve( !KU( ~nI ) @ #vk.26 )
+                  case I_Emet_M1
+                  solve( !KU( ~nR ) @ #vk.13 )
+                    case R_Recoit_M1_Emet_M2___VARIANT_2
+                    solve( !KU( ~nR.1 ) @ #vk.36 )
+                      case R_Recoit_M1_Emet_M2___VARIANT_2
+                      solve( !KU( ~nI.1 ) @ #vk.33 )
+                        case I_Emet_M1
+                        solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                                         >,
+                                         ~ltk.1)
+                               ) @ #vk.20 )
+                          case R_Recoit_M1_Emet_M2___VARIANT_2
+                          solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                                           >,
+                                           ~ltk)
+                                 ) @ #vk.28 )
+                            case I_Recoit_M2_Emet_M3___VARIANT_11
+                            solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 
+                                              'g'^~y.1, ~nR.1>,
+                                             ~ltk.3)
+                                   ) @ #vk.37 )
+                              case R_Recoit_M1_Emet_M2___VARIANT_2
+                              solve( !KU( mac(h(<
+                                                 h(<'sid', 
+                                                    kdf('g'^(~x.1*~y.1),
+                                                        <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1>)
+                                                   >), 
+                                                 'zero', ~montant, $benef>),
+                                              kdf('g'^(~x.1*~y.1),
+                                                  <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1>))
+                                     ) @ #vk.26 )
+                                case I_Emet_Instruction
+                                solve( !KU( 'g'^~y ) @ #vk.28 )
+                                  case R_Recoit_M1_Emet_M2___VARIANT_2
+                                  solve( !KU( mac(<'fin', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>,
+                                                  kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>))
+                                         ) @ #vk.30 )
+                                    case I_Recoit_M2_Emet_M3___VARIANT_11
+                                    solve( !KU( 'g'^~x ) @ #vk.33 )
+                                      case I_Emet_M1
+                                      solve( !KU( mac(<'fin', 'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, 
+                                                       ~nR.1>,
+                                                      kdf('g'^(~x.1*~y.1),
+                                                          <'tr', $I.1, $R.1, 'g'^~x.1, ~nI.1, 'g'^~y.1, ~nR.1
+                                                          >))
+                                             ) @ #vk.34 )
+                                        case I_Recoit_M2_Emet_M3___VARIANT_11
+                                        solve( !KU( 'g'^~x.1 ) @ #vk.36 )
+                                          case I_Emet_M1
+                                          solve( !KU( 'g'^~y.1 ) @ #vk.37 )
+                                            case R_Recoit_M1_Emet_M2___VARIANT_2
+                                            SOLVED // trace found
+                                          qed
+                                        qed
+                                      qed
+                                    qed
+                                  qed
+                                qed
+                              qed
+                            qed
+                          qed
+                        qed
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   executabilite (exists-trace): verified (24 steps)
+
+## ---- P3_integrite (300 s, code de sortie 142)
+
+## ---- P4_non_rejeu (301 s, code de sortie 142)
+
+## ---- P5_ancrage_journal (300 s, code de sortie 142)
+
+## ---- P1a_repondant_authentifie_initiateur (9 s, code de sortie 0)
+lemma P1a_repondant_authentifie_initiateur:
+  all-traces
+  "∀ I R k #j.
+    ((RepondantTermine( I, R, k ) @ #j) ∧
+     (¬(∃ #c. (Compromis( I ) @ #c) ∧ (#c < #j)))) ⇒
+    (∃ #i.
+      ((InitiateurEngage( I, R, k ) @ #i) ∧ (#i < #j)) ∧
+      (¬(∃ I2 R2 #j2. (RepondantTermine( I2, R2, k ) @ #j2) ∧ (¬(#j2 = #j)))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #j.
+  (RepondantTermine( I, R, k ) @ #j)
+ ∧
+  (∀ #c. (Compromis( I ) @ #c) ⇒ ¬(#c < #j)) ∧
+  (∀ #i.
+    (InitiateurEngage( I, R, k ) @ #i)
+   ⇒
+    ((¬(#i < #j)) ∨
+     (∃ I2 R2 #j2. (RepondantTermine( I2, R2, k ) @ #j2) ∧ ¬(#j2 = #j))))"
+*/
+simplify
+solve( RepondantTermine( I, R, k ) @ #j )
+  case R_Recoit_M3___VARIANT_2
+  solve( Etat_R_1( $I, $R, tr, k, pk(x) ) ▶₀ #j )
+    case R_Recoit_M1_Emet_M2___VARIANT_1
+    solve( !KU( sign(<'sfb-aka/tr', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>, ~ltk)
+           ) @ #vk.3 )
+      case R_Recoit_M1_Emet_M2___VARIANT_1
+      solve( !KU( mac(<'fin', 'tr', $I, $I, X, nI, 'g'^~y, ~nR>,
+                      kdf(X^~y, <'tr', $I, $I, X, nI, 'g'^~y, ~nR>))
+             ) @ #vk.4 )
+        case c_mac
+        solve( !KU( kdf(X^~y, <'tr', $I, $I, X, nI, 'g'^~y, ~nR>) ) @ #vk.17 )
+          case c_kdf
+          solve( !KU( X^~y ) @ #vk.24 )
+            case R_Recoit_M1_Emet_M2___VARIANT_1
+            solve( !KU( ~nR ) @ #vk.23 )
+              case R_Recoit_M1_Emet_M2___VARIANT_1
+              SOLVED // trace found
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+# résumé outil :   P1a_repondant_authentifie_initiateur (all-traces): falsified - found trace (9 steps)

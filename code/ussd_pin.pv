@@ -1,0 +1,45 @@
+(* ============================================================
+   PATRON D'INTERCONNEXION 2 : canal USSD (3GPP TS 23.090)
+
+   Le service USSD n'offre aucun chiffrement de bout en bout : le code
+   confidentiel et le montant transitent en clair entre le terminal et la
+   plateforme, a travers le coeur de reseau (SS7/SIGTRAN) et la passerelle
+   USSD. Le segment de signalisation est modelise comme un canal public
+   (extension "canal partiellement compromis").
+
+   Proprietes examinees :
+     Q1  secret du code confidentiel (PIN)       -> attendu : VIOLE
+     Q2  secret du montant                        -> attendu : VIOLE
+     Q3  accord injectif sur la transaction       -> attendu : VIOLE
+         (l'adversaire rejoue ou forge une transaction avec le PIN capture)
+
+   Verification : proverif ussd_pin.pv
+   ============================================================ *)
+
+free signalisation : channel.             (* SS7 / SIGTRAN / passerelle USSD : expose *)
+
+free pin     : bitstring [private].
+free montant : bitstring [private].
+
+event abonneValide(bitstring, bitstring).      (* (beneficiaire, montant) *)
+event plateformeExecute(bitstring, bitstring).
+
+(* Q1 *) query attacker(pin).
+(* Q2 *) query attacker(montant).
+(* Q3 *) query b : bitstring, m : bitstring;
+         inj-event(plateformeExecute(b, m)) ==> inj-event(abonneValide(b, m)).
+
+(* ---------- Terminal de l'abonne ---------- *)
+let terminal =
+    new beneficiaire : bitstring;
+    event abonneValide(beneficiaire, montant);
+    out(signalisation, (beneficiaire, montant, pin)).
+
+(* ---------- Plateforme Mobile Money (via passerelle USSD) ---------- *)
+let plateforme =
+    in(signalisation, (b : bitstring, m : bitstring, p : bitstring));
+    if p = pin then
+    event plateformeExecute(b, m).
+
+process
+    ( !terminal | !plateforme )

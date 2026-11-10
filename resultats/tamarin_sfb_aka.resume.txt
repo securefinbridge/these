@@ -1,0 +1,13 @@
+Modèle code/sfb_aka.spthy (étiquettes de rôle)
+executabilite_session (exists-trace): verified (13 steps) (7 s)
+P1a_repondant_authentifie_initiateur (all-traces): verified (22 steps) (7 s)
+P1b_initiateur_authentifie_repondant (all-traces): verified (40 steps) (8 s)
+P2_secret_montant (all-traces): verified (30 steps) (8 s)
+P6_pfs (all-traces): verified (44 steps) (7 s)
+executabilite (exists-trace): verified (24 steps) (88 s)
+P3_integrite : non conclusif (pas de terminaison en 300 s) (300 s)
+P4_non_rejeu : non conclusif (pas de terminaison en 300 s) (301 s)
+P5_ancrage_journal : non conclusif (pas de terminaison en 300 s) (300 s)
+
+Modèle code/sfb_aka_v1_reflexion.spthy (sans étiquettes de rôle)
+P1a_repondant_authentifie_initiateur (all-traces): falsified - found trace (9 steps) (9 s)

@@ -1,0 +1,93 @@
+(* ============================================================
+   CONTRE-MESURE A L'ATTAQUE PAR COMPOSITION : separation de domaine.
+
+   Meme systeme que composition_cle_partagee.pv -- la cle skR sert toujours
+   aux deux protocoles -- mais chaque usage signe un message prefixe par une
+   etiquette de domaine distincte :
+       etablissement de session : sign((etqAKA,   transcription), skR)
+       notification             : sign((etqNotif, libelle),       skR)
+   L'oracle de signalisation ne peut plus produire une signature acceptable
+   par l'initiateur, car (etqNotif, m) ne s'unifie jamais avec (etqAKA, tr).
+
+   Proprietes attendues : P1a, P1b et P2 SATISFAITES (resultat : vraies).
+   P6 n'est pas testee ici : ce modele n'a pas de phase de divulgation.
+   (SFB-AKA retient de surcroit des cles distinctes par protocole : la
+    separation de domaine est la defense en profondeur, pas la seule.)
+
+   Verification : proverif composition_separation.pv
+   ============================================================ *)
+
+type pkey. type skey. type element. type exponent. type key.
+
+free reseau        : channel.
+free signalisation : channel.
+const g : element [data].
+
+const etqAKA   : bitstring [data].
+const etqNotif : bitstring [data].
+
+fun pk(skey) : pkey.
+fun sign(bitstring, skey) : bitstring.
+reduc forall m : bitstring, k : skey; verifier(sign(m, k), pk(k)) = m.
+
+fun expo(element, exponent) : element.
+equation forall x : exponent, y : exponent;
+         expo(expo(g, x), y) = expo(expo(g, y), x).
+
+fun kdf(element, bitstring) : key.
+fun aead(bitstring, key) : bitstring.
+reduc forall m : bitstring, k : key; ouvrir(aead(m, k), k) = m.
+
+free skI : skey [private].
+free skR : skey [private].
+free montant : bitstring [private].
+
+event initiateurEngage(pkey, pkey, key).
+event repondantTermine(pkey, pkey, key).
+event repondantEngage(pkey, pkey, key).
+event initiateurTermine(pkey, pkey, key).
+
+query a : pkey, b : pkey, k : key;
+      inj-event(repondantTermine(a, b, k)) ==> inj-event(initiateurEngage(a, b, k)).
+query a : pkey, b : pkey, k : key;
+      inj-event(initiateurTermine(a, b, k)) ==> inj-event(repondantEngage(a, b, k)).
+query attacker(montant).
+
+let initiateur(pkR : pkey) =
+    new x : exponent;
+    new nI : bitstring;
+    let X = expo(g, x) in
+    out(reseau, (pk(skI), X, nI));
+    in(reseau, (Y : element, nR : bitstring, sigR : bitstring));
+    let transcription = (pk(skI), X, nI, Y, nR) in
+    if verifier(sigR, pkR) = (etqAKA, transcription) then
+    let cle = kdf(expo(Y, x), transcription) in
+    event initiateurEngage(pk(skI), pkR, cle);
+    out(reseau, sign((etqAKA, transcription), skI));
+    event initiateurTermine(pk(skI), pkR, cle);
+    out(reseau, aead(montant, cle)).
+
+let repondant(pkI : pkey) =
+    in(reseau, (pkA : pkey, X : element, nI : bitstring));
+    if pkA = pkI then
+    new y : exponent;
+    new nR : bitstring;
+    let Y = expo(g, y) in
+    let transcription = (pkA, X, nI, Y, nR) in
+    let cle = kdf(expo(X, y), transcription) in
+    event repondantEngage(pkA, pk(skR), cle);
+    out(reseau, (Y, nR, sign((etqAKA, transcription), skR)));
+    in(reseau, sigI : bitstring);
+    if verifier(sigI, pkA) = (etqAKA, transcription) then
+    event repondantTermine(pkA, pk(skR), cle).
+
+let notification =
+    in(signalisation, libelle : bitstring);
+    out(signalisation, sign((etqNotif, libelle), skR)).
+
+process
+    out(reseau, (pk(skI), pk(skR)));
+    (   !initiateur(pk(skR))
+      | !repondant(pk(skI))
+      | !notification
+    )

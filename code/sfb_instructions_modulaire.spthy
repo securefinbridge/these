@@ -1,0 +1,98 @@
+/* ============================================================
+   SFB-AKA : couche de traitement des instructions, preuve modulaire
+   Syntaxe Tamarin Prover (>= 1.8).   ./verifier.sh tamarin
+
+   La theorie complete (sfb_aka.spthy) ne converge pas sur P3 a P5 :
+   la recherche doit raisonner a la fois sur l'etablissement de session et
+   sur la chaine des compteurs. Cette theorie separe les deux couches,
+   selon le schema classique de composition : l'etablissement de session
+   fournit une cle partagee secrete, propriete ETABLIE par P2 et P6 dans la
+   theorie complete ; elle est ici prise comme hypothese (regle Session).
+   La couche d'instructions reproduit a l'identique les regles
+   I_Emet_Instruction et R_Recoit_Instruction de sfb_aka.spthy.
+
+   La composition des deux preuves n'est pas mecanisee : c'est la limite
+   de ce resultat, declaree au chapitre 7.
+   ============================================================ */
+
+theory SFB_Instructions_Modulaire
+begin
+
+builtins: hashing, symmetric-encryption
+
+functions: mac/2, succ/1
+
+restriction Egalite:
+  "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+/* Hypothese issue de la couche AKA : une cle de session fraiche, connue des
+   seules deux parties (P2, P6 de sfb_aka.spthy). */
+rule Session:
+  [ Fr(~k) ]
+  --[ Session(~k) ]->
+  [ Etat_I_2(~k, 'zero'), Etat_R_2(~k, 'zero') ]
+
+rule I_Emet_Instruction:
+  let sid   = h(<'sid', k>)
+      instr = <sid, c, ~montant, $benef>
+  in
+  [ Etat_I_2(k, c), Fr(~montant) ]
+  --[ InstructionEmise(sid, c, ~montant), Chiffre(instr, k) ]->
+  [ Etat_I_2(k, succ(c)),
+    Out(<senc(instr, k), mac(h(instr), k)>) ]
+
+rule R_Recoit_Instruction:
+  let sid   = h(<'sid', k>)
+      instr = <sid, c, montant, benef>
+  in
+  [ Etat_R_2(k, c), In(<senc(instr, k), etiquette>) ]
+  --[ Eq(etiquette, mac(h(instr), k)),
+      Dechiffre(instr, k),
+      EtatR(k, c),
+      InstructionRecue(sid, c, montant),
+      Journalise(sid, c, h(instr)) ]->
+  [ Etat_R_2(k, succ(c)), !Journal(sid, c, h(instr)) ]
+
+/* Lemme de sources : tout clair dechiffre par le repondant provient d'un
+   chiffre emis par l'initiateur, ou l'adversaire connait la cle. */
+lemma sources_instructions [sources]:
+  "All x k #i. Dechiffre(x, k) @ #i
+   ==> (Ex #j. Chiffre(x, k) @ #j & #j < #i) | (Ex #r. KU(k) @ #r & #r < #i)"
+
+/* Non-vacuite : une instruction emise est recue et journalisee. */
+lemma executabilite_instructions:
+  exists-trace
+  "Ex sid c m #i #j. InstructionEmise(sid, c, m) @ #i & InstructionRecue(sid, c, m) @ #j"
+
+/* Secret de la cle de session dans cette couche (verification de l'hypothese). */
+lemma cle_secrete [reuse]:
+  "All k #i. Session(k) @ #i ==> not (Ex #r. K(k) @ #r)"
+
+/* Tout etat du repondant provient d'une session etablie (invariant de la
+   chaine des compteurs, prouve par induction). */
+lemma etat_issu_session [reuse, use_induction]:
+  "All k c #i. EtatR(k, c) @ #i ==> (Ex #s. Session(k) @ #s & #s < #i)"
+
+/* Unicite des etats du repondant : un etat (cle, compteur) n'est consomme
+   qu'une fois. Lemme auxiliaire, prouve par induction. */
+lemma etat_unique [reuse, use_induction]:
+  "All k c #i #j. EtatR(k, c) @ #i & EtatR(k, c) @ #j ==> #i = #j"
+
+/* P3. Integrite : toute instruction acceptee a ete emise telle quelle. */
+lemma P3_integrite:
+  "All sid c m #j. InstructionRecue(sid, c, m) @ #j
+   ==> (Ex #i. InstructionEmise(sid, c, m) @ #i & #i < #j)"
+
+/* P4. Non-rejeu : une instruction n'est acceptee qu'une fois. */
+lemma P4_non_rejeu:
+  "All sid c m #i #j.
+     InstructionRecue(sid, c, m) @ #i & InstructionRecue(sid, c, m) @ #j
+   ==> #i = #j"
+
+/* P5 (couche instructions). Toute entree de journal correspond a une
+   instruction emise par la partie qui detient la cle de session. */
+lemma P5_journal_ancre:
+  "All sid c e #j. Journalise(sid, c, e) @ #j
+   ==> (Ex m b #i. InstructionEmise(sid, c, m) @ #i & e = h(<sid, c, m, b>) & #i < #j)"
+
+end

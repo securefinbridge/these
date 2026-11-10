@@ -1,0 +1,5085 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification Tamarin (compléments)
+# Date      : 2026-11-10 13:12:42 GMT
+# Machine   : Linux 6.18.44-fc-v338 x86_64 — Intel(R) Xeon(R) Processor @ 2.30GHz
+# Tamarin   : tamarin-prover 1.12.0, (C) David Basin, Cas Cremers, Jannik Dreier, Simon Meier, Ralf Sasse, Benedikt Schmidt, 2010-2023
+# Maude     : 3.5.1
+# ===========================================================
+
+##### code/sfb_instructions_modulaire.spthy
+maude tool: 'maude'
+ checking version: 3.5.1. OK.
+ checking installation: OK.
+[Theory SFB_Instructions_Modulaire] Theory loaded
+[Theory SFB_Instructions_Modulaire] Theory translated
+[Theory SFB_Instructions_Modulaire] Derivation checks started
+[Theory SFB_Instructions_Modulaire] Derivation checks ended
+[Theory SFB_Instructions_Modulaire] Theory closed
+[Saturating Sources] Step 1 (Max 5)
+[Saturating Sources] Done
+[Saturating Sources] Done
+theory SFB_Instructions_Modulaire
+
+begin
+
+// Function signature and definition of the equational theory E
+
+functions: fst/1, h/1, mac/2, pair/2, sdec/2, senc/2, snd/1, succ/1
+equations:
+    fst(<x.1, x.2>) = x.1,
+    sdec(senc(x.1, x.2), x.2) = x.1,
+    snd(<x.1, x.2>) = x.2
+
+/* looping facts with injective instances: Etat_I_2/2, Etat_R_2/2 */
+
+restriction Egalite:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  // safety formula
+
+  /*
+  expanded formula:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  */
+
+rule (modulo E) Session:
+   [ Fr( ~k ) ]
+  --[ Session( ~k ) ]->
+   [ Etat_I_2( ~k, 'zero' ), Etat_R_2( ~k, 'zero' ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) I_Emet_Instruction:
+   [ Etat_I_2( k, c ), Fr( ~montant ) ]
+  --[
+  InstructionEmise( h(<'sid', k>), c, ~montant ),
+  Chiffre( <h(<'sid', k>), c, ~montant, $benef>, k )
+  ]->
+   [
+   Etat_I_2( k, succ(c) ),
+   Out( <senc(<h(<'sid', k>), c, ~montant, $benef>, k), 
+         mac(h(<h(<'sid', k>), c, ~montant, $benef>), k)>
+   )
+   ]
+
+  // loop breaker: [0]
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) R_Recoit_Instruction:
+   [
+   Etat_R_2( k, c ),
+   In( <senc(<h(<'sid', k>), c, montant, benef>, k), etiquette> )
+   ]
+  --[
+  Eq( etiquette, mac(h(<h(<'sid', k>), c, montant, benef>), k) ),
+  Dechiffre( <h(<'sid', k>), c, montant, benef>, k ), EtatR( k, c ),
+  InstructionRecue( h(<'sid', k>), c, montant ),
+  Journalise( h(<'sid', k>), c, h(<h(<'sid', k>), c, montant, benef>) )
+  ]->
+   [
+   Etat_R_2( k, succ(c) ),
+   !Journal( h(<'sid', k>), c, h(<h(<'sid', k>), c, montant, benef>) )
+   ]
+
+  // loop breaker: [0]
+  /* has exactly the trivial AC variant */
+
+lemma sources_instructions [sources]:
+  all-traces
+  "∀ x k #i.
+    (Dechiffre( x, k ) @ #i) ⇒
+    ((∃ #j. (Chiffre( x, k ) @ #j) ∧ (#j < #i)) ∨
+     (∃ #r. (!KU( k ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ x k #i.
+  (Dechiffre( x, k ) @ #i)
+ ∧
+  (∀ #j. (Chiffre( x, k ) @ #j) ⇒ ¬(#j < #i)) ∧
+  (∀ #r. (!KU( k ) @ #r) ⇒ ¬(#r < #i))"
+*/
+induction
+  case empty_trace
+  by contradiction /* from formulas */
+next
+  case non_empty_trace
+  solve( (last(#i))  ∥
+         (∃ #j.
+           (Chiffre( <h(<'sid', k>), c, montant, benef>, k ) @ #j)
+          ∧
+           (¬(last(#j))) ∧ (#j < #i))  ∥
+         (∃ #r. (!KU( k ) @ #r) ∧ (¬(last(#r))) ∧ (#r < #i)) )
+    case case_1
+    solve( !KU( senc(<h(<'sid', k>), c, montant, benef>, k) ) @ #vk.1 )
+      case I_Emet_Instruction_case_1
+      by contradiction /* from formulas */
+    next
+      case I_Emet_Instruction_case_2
+      solve( !KU( mac(h(<h(<'sid', k>), c, montant, benef>), k) ) @ #vk.2 )
+        case I_Emet_Instruction_case_1
+        solve( Etat_R_2( k, c ) ▶₀ #i )
+          case R_Recoit_Instruction
+          solve( (∃ #j.
+                   (Chiffre( <h(<'sid', k>), c, montant.3, benef.3>, k ) @ #j)
+                  ∧
+                   (¬(last(#j))) ∧ (#j < #vr.10))  ∥
+                 (∃ #r. (!KU( k ) @ #r) ∧ (¬(last(#r))) ∧ (#r < #vr.10)) )
+            case case_1
+            solve( !KU( senc(<h(<'sid', k>), c, ~montant.3, $benef.3>, k) ) @ #vk.6 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( mac(h(<h(<'sid', k>), c, ~montant.1, $benef.1>), k)
+                     ) @ #vk.7 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                by contradiction /* from formulas */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', k>), c, ~montant.1, $benef.1>), k)
+                     ) @ #vk.7 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                by contradiction /* from formulas */
+              qed
+            next
+              case c_senc
+              by contradiction /* from formulas */
+            qed
+          next
+            case case_2
+            by contradiction /* from formulas */
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        by contradiction /* from formulas */
+      next
+        case c_mac
+        by contradiction /* from formulas */
+      qed
+    next
+      case c_senc
+      by contradiction /* from formulas */
+    qed
+  next
+    case case_2
+    by contradiction /* from formulas */
+  next
+    case case_3
+    by contradiction /* from formulas */
+  qed
+qed
+
+lemma executabilite_instructions:
+  exists-trace
+  "∃ sid c m #i #j.
+    (InstructionEmise( sid, c, m ) @ #i) ∧
+    (InstructionRecue( sid, c, m ) @ #j)"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ sid c m #i #j.
+  (InstructionEmise( sid, c, m ) @ #i) ∧
+  (InstructionRecue( sid, c, m ) @ #j)"
+*/
+simplify
+solve( !KU( senc(<h(<'sid', k>), c, ~montant, benef.1>, k) ) @ #vk.1 )
+  case I_Emet_Instruction_case_1
+  solve( Etat_I_2( k, c ) ▶₀ #i )
+    case Session
+    solve( Etat_R_2( ~k, 'zero' ) ▶₀ #j )
+      case Session
+      solve( !KU( mac(h(<h(<'sid', ~k>), 'zero', ~montant, $benef>), ~k)
+             ) @ #vk.2 )
+        case I_Emet_Instruction_case_2
+        SOLVED // trace found
+      qed
+    qed
+  qed
+qed
+
+lemma cle_secrete [reuse]:
+  all-traces "∀ k #i. (Session( k ) @ #i) ⇒ (¬(∃ #r. K( k ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ k #i. (Session( k ) @ #i) ∧ ∃ #r. (K( k ) @ #r)"
+*/
+simplify
+solve( !KU( ~k ) @ #vk )
+  case I_Emet_Instruction
+  solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+    case I_Emet_Instruction
+    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+  next
+    case Session
+    by contradiction /* forbidden KD-fact */
+  qed
+qed
+
+lemma etat_issu_session [reuse, use_induction]:
+  all-traces
+  "∀ k c #i.
+    (EtatR( k, c ) @ #i) ⇒ (∃ #s. (Session( k ) @ #s) ∧ (#s < #i))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ k c #i. (EtatR( k, c ) @ #i) ∧ ∀ #s. (Session( k ) @ #s) ⇒ ¬(#s < #i)"
+*/
+induction
+  case empty_trace
+  by contradiction /* from formulas */
+next
+  case non_empty_trace
+  solve( (last(#i))  ∥
+         (∃ #s. (Session( k ) @ #s) ∧ (¬(last(#s))) ∧ (#s < #i)) )
+    case case_1
+    solve( Etat_R_2( k, c ) ▶₀ #i )
+      case R_Recoit_Instruction
+      by contradiction /* from formulas */
+    next
+      case Session
+      by contradiction /* from formulas */
+    qed
+  next
+    case case_2
+    by contradiction /* from formulas */
+  qed
+qed
+
+lemma etat_unique [reuse, use_induction]:
+  all-traces
+  "∀ k c #i #j. ((EtatR( k, c ) @ #i) ∧ (EtatR( k, c ) @ #j)) ⇒ (#i = #j)"
+/*
+guarded formula characterizing all counter-examples:
+"∃ k c #i #j. (EtatR( k, c ) @ #i) ∧ (EtatR( k, c ) @ #j) ∧ ¬(#i = #j)"
+*/
+induction
+  case empty_trace
+  by contradiction /* from formulas */
+next
+  case non_empty_trace
+  by contradiction /* from formulas */
+qed
+
+lemma P3_integrite:
+  all-traces
+  "∀ sid c m #j.
+    (InstructionRecue( sid, c, m ) @ #j) ⇒
+    (∃ #i. (InstructionEmise( sid, c, m ) @ #i) ∧ (#i < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ sid c m #j.
+  (InstructionRecue( sid, c, m ) @ #j)
+ ∧
+  ∀ #i. (InstructionEmise( sid, c, m ) @ #i) ⇒ ¬(#i < #j)"
+*/
+simplify
+solve( !KU( senc(<h(<'sid', ~k>), c, m, benef>, ~k) ) @ #vk.1 )
+  case I_Emet_Instruction_case_1
+  by contradiction /* from formulas */
+next
+  case I_Emet_Instruction_case_2
+  solve( !KU( mac(h(<h(<'sid', ~k>), c, m, benef>), ~k) ) @ #vk.2 )
+    case I_Emet_Instruction_case_1
+    solve( Etat_R_2( ~k, c ) ▶₀ #j )
+      case R_Recoit_Instruction
+      solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k) ) @ #vk.6 )
+        case I_Emet_Instruction_case_1
+        solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+          case I_Emet_Instruction
+          by solve( (#vr.4, 0) ~~> (#vk, 0) )
+        next
+          case Session
+          by contradiction /* forbidden KD-fact */
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+               ) @ #vk.7 )
+          case I_Emet_Instruction_case_1
+          solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        next
+          case I_Emet_Instruction_case_2
+          solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        next
+          case c_mac
+          solve( !KU( ~k ) @ #vk.10 )
+            case I_Emet_Instruction
+            solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.10 )
+              case I_Emet_Instruction
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_h
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.13 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        qed
+      next
+        case c_senc
+        solve( !KU( ~k ) @ #vk.9 )
+          case I_Emet_Instruction
+          solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                 ) @ #vk.8 )
+            case I_Emet_Instruction_case_1
+            solve( !KU( h(<'sid', ~k>) ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_h
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( ~montant.2 ) @ #vk.14 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.11 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            qed
+          next
+            case c_mac
+            solve( !KU( h(<'sid', ~k>) ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_h
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.18 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    next
+      case Session
+      solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+        case I_Emet_Instruction
+        by solve( (#vr.4, 0) ~~> (#vk, 0) )
+      next
+        case Session
+        by contradiction /* forbidden KD-fact */
+      qed
+    qed
+  next
+    case I_Emet_Instruction_case_2
+    by contradiction /* from formulas */
+  next
+    case c_mac
+    solve( !KU( ~k ) @ #vk.5 )
+      case I_Emet_Instruction
+      solve( !KU( h(<h(<'sid', ~k>), c, m, benef>) ) @ #vk.5 )
+        case I_Emet_Instruction
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k) ) @ #vk.9 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.12 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( !KU( h(<'sid', ~k>) ) @ #vk.14 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.12 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.3 ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( !KU( h(<'sid', ~k>) ) @ #vk.13 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.12 )
+                case I_Emet_Instruction_case_1
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_h
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case c_h
+        solve( !KU( h(<'sid', ~k>) ) @ #vk.8 )
+          case I_Emet_Instruction_case_1
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case I_Emet_Instruction_case_2
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.20 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.19 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.2 ) @ #vk.23 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.25 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+next
+  case c_senc
+  solve( !KU( ~k ) @ #vk.4 )
+    case I_Emet_Instruction
+    solve( !KU( mac(h(<h(<'sid', ~k>), c, m, benef>), ~k) ) @ #vk.3 )
+      case I_Emet_Instruction_case_1
+      solve( !KU( h(<'sid', ~k>) ) @ #vk.5 )
+        case I_Emet_Instruction_case_1
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                 ) @ #vk.14 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.3 ) @ #vk.20 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.22 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                 ) @ #vk.15 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.18 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.3 ) @ #vk.21 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.23 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case c_h
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k)
+                 ) @ #vk.16 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.19 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                   ) @ #vk.18 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.2 ) @ #vk.22 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.24 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      qed
+    next
+      case I_Emet_Instruction_case_2
+      by contradiction /* from formulas */
+    next
+      case c_mac
+      solve( !KU( h(<'sid', ~k>) ) @ #vk.5 )
+        case I_Emet_Instruction_case_1
+        solve( !KU( h(<h(<'sid', ~k>), c, m, benef>) ) @ #vk.12 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k)
+                   ) @ #vk.14 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.15 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.17 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.2 ) @ #vk.20 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.22 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( !KU( h(<h(<'sid', ~k>), c, m, benef>) ) @ #vk.12 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.4>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.5>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.4>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.2 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      next
+        case c_h
+        solve( !KU( h(<h(<'sid', ~k>), c, m, benef>) ) @ #vk.13 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.3>, ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.4>) ) @ #vk.20 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.3>), ~k)
+                     ) @ #vk.19 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.2 ) @ #vk.23 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.25 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.1, benef.2>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.1, benef.2>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.3>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.1, benef.2>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.1 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.1, benef.2>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma P4_non_rejeu:
+  all-traces
+  "∀ sid c m #i #j.
+    ((InstructionRecue( sid, c, m ) @ #i) ∧
+     (InstructionRecue( sid, c, m ) @ #j)) ⇒
+    (#i = #j)"
+/*
+guarded formula characterizing all counter-examples:
+"∃ sid c m #i #j.
+  (InstructionRecue( sid, c, m ) @ #i) ∧
+  (InstructionRecue( sid, c, m ) @ #j)
+ ∧
+  ¬(#i = #j)"
+*/
+simplify
+by contradiction /* from formulas */
+
+lemma P5_journal_ancre:
+  all-traces
+  "∀ sid c e #j.
+    (Journalise( sid, c, e ) @ #j) ⇒
+    (∃ m b #i.
+      ((InstructionEmise( sid, c, m ) @ #i) ∧ (e = h(<sid, c, m, b>))) ∧
+      (#i < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ sid c e #j.
+  (Journalise( sid, c, e ) @ #j)
+ ∧
+  ∀ m b #i.
+   (InstructionEmise( sid, c, m ) @ #i) ∧ (e = h(<sid, c, m, b>))
+  ⇒
+   ¬(#i < #j)"
+*/
+simplify
+solve( !KU( senc(<h(<'sid', ~k>), c, montant, benef>, ~k) ) @ #vk.1 )
+  case I_Emet_Instruction_case_1
+  by contradiction /* from formulas */
+next
+  case I_Emet_Instruction_case_2
+  solve( !KU( mac(h(<h(<'sid', ~k>), c, montant, benef>), ~k) ) @ #vk.2 )
+    case I_Emet_Instruction_case_1
+    solve( Etat_R_2( ~k, c ) ▶₀ #j )
+      case R_Recoit_Instruction
+      solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k) ) @ #vk.6 )
+        case I_Emet_Instruction_case_1
+        solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+          case I_Emet_Instruction
+          by solve( (#vr.4, 0) ~~> (#vk, 0) )
+        next
+          case Session
+          by contradiction /* forbidden KD-fact */
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+               ) @ #vk.7 )
+          case I_Emet_Instruction_case_1
+          solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        next
+          case I_Emet_Instruction_case_2
+          solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        next
+          case c_mac
+          solve( !KU( ~k ) @ #vk.10 )
+            case I_Emet_Instruction
+            solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.10 )
+              case I_Emet_Instruction
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_h
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.13 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        qed
+      next
+        case c_senc
+        solve( !KU( ~k ) @ #vk.9 )
+          case I_Emet_Instruction
+          solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                 ) @ #vk.8 )
+            case I_Emet_Instruction_case_1
+            solve( !KU( h(<'sid', ~k>) ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_h
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( ~montant.3 ) @ #vk.14 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.11 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            qed
+          next
+            case c_mac
+            solve( !KU( h(<'sid', ~k>) ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_h
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.18 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    next
+      case Session
+      solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+        case I_Emet_Instruction
+        by solve( (#vr.4, 0) ~~> (#vk, 0) )
+      next
+        case Session
+        by contradiction /* forbidden KD-fact */
+      qed
+    qed
+  next
+    case I_Emet_Instruction_case_2
+    by contradiction /* from formulas */
+  next
+    case c_mac
+    solve( !KU( ~k ) @ #vk.5 )
+      case I_Emet_Instruction
+      solve( !KU( h(<h(<'sid', ~k>), c, montant, benef>) ) @ #vk.5 )
+        case I_Emet_Instruction
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k) ) @ #vk.9 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.12 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( !KU( h(<'sid', ~k>) ) @ #vk.14 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.10 )
+              case I_Emet_Instruction_case_1
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.12 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.4 ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( !KU( h(<'sid', ~k>) ) @ #vk.13 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<'sid', ~k>) ) @ #vk.12 )
+                case I_Emet_Instruction_case_1
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_h
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case c_h
+        solve( !KU( h(<'sid', ~k>) ) @ #vk.8 )
+          case I_Emet_Instruction_case_1
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.4 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case I_Emet_Instruction_case_2
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.4 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.20 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.19 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.23 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.25 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+next
+  case c_senc
+  solve( !KU( ~k ) @ #vk.4 )
+    case I_Emet_Instruction
+    solve( !KU( mac(h(<h(<'sid', ~k>), c, montant, benef>), ~k) ) @ #vk.3 )
+      case I_Emet_Instruction_case_1
+      solve( !KU( h(<'sid', ~k>) ) @ #vk.5 )
+        case I_Emet_Instruction_case_1
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                 ) @ #vk.14 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.17 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.4 ) @ #vk.20 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.22 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                 ) @ #vk.15 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.18 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.4 ) @ #vk.21 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.23 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      next
+        case c_h
+        solve( Etat_R_2( ~k, c ) ▶₀ #j )
+          case R_Recoit_Instruction
+          solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k)
+                 ) @ #vk.16 )
+            case I_Emet_Instruction_case_1
+            solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          next
+            case I_Emet_Instruction_case_2
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.19 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          next
+            case c_senc
+            solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                   ) @ #vk.18 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( ~montant.3 ) @ #vk.22 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            next
+              case c_mac
+              solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.24 )
+                case I_Emet_Instruction
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_h
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              qed
+            qed
+          qed
+        next
+          case Session
+          solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+            case I_Emet_Instruction
+            by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+          next
+            case Session
+            by contradiction /* forbidden KD-fact */
+          qed
+        qed
+      qed
+    next
+      case I_Emet_Instruction_case_2
+      by contradiction /* from formulas */
+    next
+      case c_mac
+      solve( !KU( h(<'sid', ~k>) ) @ #vk.5 )
+        case I_Emet_Instruction_case_1
+        solve( !KU( h(<h(<'sid', ~k>), c, montant, benef>) ) @ #vk.12 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.4 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k)
+                   ) @ #vk.14 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.15 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.17 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.20 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.22 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      next
+        case I_Emet_Instruction_case_2
+        solve( !KU( h(<h(<'sid', ~k>), c, montant, benef>) ) @ #vk.12 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.4, benef.4>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.5, benef.5>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.4, benef.4>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.4 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k)
+                   ) @ #vk.15 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.16 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.18 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.21 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.23 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      next
+        case c_h
+        solve( !KU( h(<h(<'sid', ~k>), c, montant, benef>) ) @ #vk.13 )
+          case I_Emet_Instruction
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.3, benef.3>, ~k)
+                   ) @ #vk.17 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.4, benef.4>) ) @ #vk.20 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.3, benef.3>), ~k)
+                     ) @ #vk.19 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.3 ) @ #vk.23 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.25 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        next
+          case c_h
+          solve( Etat_R_2( ~k, c ) ▶₀ #j )
+            case R_Recoit_Instruction
+            solve( !KU( senc(<h(<'sid', ~k>), c, montant.2, benef.2>, ~k)
+                   ) @ #vk.16 )
+              case I_Emet_Instruction_case_1
+              solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                case I_Emet_Instruction
+                by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+              next
+                case Session
+                by contradiction /* forbidden KD-fact */
+              qed
+            next
+              case I_Emet_Instruction_case_2
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.2>), ~k)
+                     ) @ #vk.17 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.3, benef.3>) ) @ #vk.19 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            next
+              case c_senc
+              solve( !KU( mac(h(<h(<'sid', ~k>), c, montant.2, benef.2>), ~k)
+                     ) @ #vk.18 )
+                case I_Emet_Instruction_case_1
+                solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                  case I_Emet_Instruction
+                  by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                next
+                  case Session
+                  by contradiction /* forbidden KD-fact */
+                qed
+              next
+                case I_Emet_Instruction_case_2
+                solve( !KU( ~montant.2 ) @ #vk.22 )
+                  case I_Emet_Instruction_case_1
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case I_Emet_Instruction_case_2
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              next
+                case c_mac
+                solve( !KU( h(<h(<'sid', ~k>), c, montant.2, benef.2>) ) @ #vk.24 )
+                  case I_Emet_Instruction
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                next
+                  case c_h
+                  solve( Etat_I_2( k.1, c.1 ) ▶₀ #vr )
+                    case I_Emet_Instruction
+                    by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+                  next
+                    case Session
+                    by contradiction /* forbidden KD-fact */
+                  qed
+                qed
+              qed
+            qed
+          next
+            case Session
+            solve( Etat_I_2( k.1, c ) ▶₀ #vr )
+              case I_Emet_Instruction
+              by solve( (#vr.4, 0) ~~> (#vk.1, 0) )
+            next
+              case Session
+              by contradiction /* forbidden KD-fact */
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+/* All wellformedness checks were successful. */
+
+/*
+Generated from:
+Tamarin version 1.12.0
+Maude version 3.5.1
+Git revision: 82780bbaf3328a45f624ddb41e51bf75425f851c (with uncommited changes), branch: master
+Compiled at: 2026-03-07 14:22:39.174278293 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: sfb_instructions_modulaire.spthy
+
+  processing time: 13.34s
+  
+  sources_instructions (all-traces): verified (35 steps)
+  executabilite_instructions (exists-trace): verified (6 steps)
+  cle_secrete (all-traces): verified (5 steps)
+  etat_issu_session (all-traces): verified (7 steps)
+  etat_unique (all-traces): verified (3 steps)
+  P3_integrite (all-traces): verified (650 steps)
+  P4_non_rejeu (all-traces): verified (2 steps)
+  P5_journal_ancre (all-traces): verified (650 steps)
+
+==============================================================================
+
+##### code/sfb_aka_sans_registre.spthy
+maude tool: 'maude'
+ checking version: 3.5.1. OK.
+ checking installation: OK.
+[Theory SFB_AKA_Sans_Registre] Theory loaded
+[Theory SFB_AKA_Sans_Registre] Theory translated
+[Theory SFB_AKA_Sans_Registre] Derivation checks started
+[Theory SFB_AKA_Sans_Registre] Derivation checks ended
+[Theory SFB_AKA_Sans_Registre] Theory closed
+[Saturating Sources] Step 1 (Max 5)
+[Saturating Sources] Done
+theory SFB_AKA_Sans_Registre
+
+begin
+
+// Function signature and definition of the equational theory E
+
+builtins: diffie-hellman
+functions: fst/1, h/1, kdf/2, mac/2, pair/2, pk/1, sign/2, snd/1, true/0,
+           verify/3
+equations:
+    fst(<x.1, x.2>) = x.1,
+    snd(<x.1, x.2>) = x.2,
+    verify(sign(x.1, x.2), x.1, pk(x.2)) = true
+
+restriction Egalite:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  // safety formula
+
+  /*
+  expanded formula:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  */
+
+restriction Registre_Unique:
+  "∀ A #i #j.
+    ((Enregistre( A ) @ #i) ∧ (Enregistre( A ) @ #j)) ⇒ (#i = #j)"
+  // safety formula
+
+  /*
+  expanded formula:
+  "∀ A #i #j.
+    ((Enregistre( A ) @ #i) ∧ (Enregistre( A ) @ #j)) ⇒ (#i = #j)"
+  */
+
+rule (modulo E) Enregistrement_Partenaire:
+   [ Fr( ~ltk ) ]
+  --[ Enregistre( $A ), Honnete( $A ) ]->
+   [ !Ltk( $A, ~ltk ), !Registre( $A, pk(~ltk) ), Out( pk(~ltk) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Compromission_Cle_Long_Terme:
+   [ !Ltk( $A, ltk ) ] --[ Compromis( $A ) ]-> [ Out( ltk ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) I_Emet_M1:
+   [ Fr( ~x ), Fr( ~nI ), !Ltk( $I, ltkI ), !Registre( $R, pkR ) ]
+  --[ Debut_I( $I, $R ) ]->
+   [
+   Etat_I_1( $I, $R, ~x, ~nI, ltkI, pkR ),
+   Out( <'M1', $I, pk(ltkI), 'g'^~x, ~nI> )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) R_Recoit_M1_Emet_M2:
+   [ Fr( ~y ), Fr( ~nR ), !Ltk( $R, ltkR ), In( <'M1', $I, pkI, X, nI> ) ]
+  --[
+  RepondantEngage( $I, $R, kdf(X^~y, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>) )
+  ]->
+   [
+   Etat_R_1( $I, $R, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>,
+             kdf(X^~y, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>), pkI
+   ),
+   Out( <'M2', 'g'^~y, ~nR, 
+         sign(<'sfb-aka/tr/R', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>, ltkR)>
+   )
+   ]
+
+  /*
+  rule (modulo AC) R_Recoit_M1_Emet_M2:
+     [ Fr( ~y ), Fr( ~nR ), !Ltk( $R, ltkR ), In( <'M1', $I, pkI, X, nI> ) ]
+    --[ RepondantEngage( $I, $R, kdf(z, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>) )
+    ]->
+     [
+     Etat_R_1( $I, $R, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>,
+               kdf(z, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>), pkI
+     ),
+     Out( <'M2', 'g'^~y, ~nR, 
+           sign(<'sfb-aka/tr/R', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>, ltkR)>
+     )
+     ]
+    variants (modulo AC)
+    1. ~y    = ~y.15
+       X     = X.16
+       z     = X.16^~y.15
+    
+    2. ~y    = ~y.105
+       X     = x.204^x.205
+       z     = x.204^(~y.105*x.205)
+    
+    3. X     = DH_neutral
+       z     = DH_neutral
+  */
+
+rule (modulo E) I_Recoit_M2_Emet_M3:
+   [ Etat_I_1( $I, $R, ~x, ~nI, ltkI, pkR ), In( <'M2', Y, nR, sigR> ) ]
+  --[
+  Eq( verify(sigR, <'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+             pkR),
+      true
+  ),
+  InitiateurEngage( $I, $R, kdf(Y^~x, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>)
+  ),
+  InitiateurTermine( $I, $R, kdf(Y^~x, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>)
+  )
+  ]->
+   [
+   Out( <'M3', 
+         sign(<'sfb-aka/tr/I', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>, ltkI), 
+         mac(<'fin', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+             kdf(Y^~x, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>))
+        >
+   )
+   ]
+
+  /*
+  rule (modulo AC) I_Recoit_M2_Emet_M3:
+     [ Etat_I_1( $I, $R, ~x, ~nI, ltkI, pkR ), In( <'M2', Y, nR, sigR> ) ]
+    --[
+    Eq( z.1, true ),
+    InitiateurEngage( $I, $R, kdf(z, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>) ),
+    InitiateurTermine( $I, $R, kdf(z, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>) )
+    ]->
+     [
+     Out( <'M3', 
+           sign(<'sfb-aka/tr/I', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>, ltkI), 
+           mac(<'fin', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+               kdf(z, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>))
+          >
+     )
+     ]
+    variants (modulo AC)
+     1. $I    = $I.27
+        $R    = $R.28
+        ~nI   = ~nI.29
+        ~x    = ~x.30
+        Y     = Y.31
+        nR    = nR.33
+        pkR   = pkR.34
+        sigR  = sigR.35
+        z     = Y.31^~x.30
+        z.1   = verify(sigR.35,
+                       <'sfb-aka/tr/R', 'tr', $I.27, $R.28, 'g'^~x.30, ~nI.29, Y.31, nR.33>,
+                       pkR.34)
+    
+     2. $I    = $I.27
+        $R    = $R.28
+        ~nI   = ~nI.29
+        ~x    = ~x.30
+        Y     = DH_neutral
+        nR    = nR.33
+        pkR   = pkR.34
+        sigR  = sigR.35
+        z     = DH_neutral
+        z.1   = verify(sigR.35,
+                       <'sfb-aka/tr/R', 'tr', $I.27, $R.28, 'g'^~x.30, ~nI.29, DH_neutral, nR.33
+                       >,
+                       pkR.34)
+    
+     3. $I    = $I.34
+        $R    = $R.35
+        ~nI   = ~nI.36
+        ~x    = ~x.37
+        Y     = z.49^inv(~x.37)
+        nR    = nR.40
+        pkR   = pkR.41
+        sigR  = sigR.42
+        z     = z.49
+        z.1   = verify(sigR.42,
+                       <'sfb-aka/tr/R', 'tr', $I.34, $R.35, 'g'^~x.37, ~nI.36, z.49^inv(~x.37), 
+                        nR.40>,
+                       pkR.41)
+    
+     4. $I    = $I.170
+        $R    = $R.171
+        ~nI   = ~nI.172
+        ~x    = ~x.173
+        Y     = x.337^x.338
+        nR    = nR.176
+        pkR   = pkR.177
+        sigR  = sigR.178
+        z     = x.337^(~x.173*x.338)
+        z.1   = verify(sigR.178,
+                       <'sfb-aka/tr/R', 'tr', $I.170, $R.171, 'g'^~x.173, ~nI.172, x.337^x.338, 
+                        nR.176>,
+                       pkR.177)
+    
+     5. $I    = $I.171
+        $R    = $R.172
+        ~nI   = ~nI.173
+        ~x    = ~x.174
+        Y     = x.339^inv((~x.174*x.340))
+        nR    = nR.177
+        pkR   = pkR.178
+        sigR  = sigR.179
+        z     = x.339^inv(x.340)
+        z.1   = verify(sigR.179,
+                       <'sfb-aka/tr/R', 'tr', $I.171, $R.172, 'g'^~x.174, ~nI.173, 
+                        x.339^inv((~x.174*x.340)), nR.177>,
+                       pkR.178)
+    
+     6. $I    = $I.171
+        $R    = $R.172
+        ~nI   = ~nI.173
+        ~x    = ~x.174
+        Y     = x.339^(x.340*inv(~x.174))
+        nR    = nR.177
+        pkR   = pkR.178
+        sigR  = sigR.179
+        z     = x.339^x.340
+        z.1   = verify(sigR.179,
+                       <'sfb-aka/tr/R', 'tr', $I.171, $R.172, 'g'^~x.174, ~nI.173, 
+                        x.339^(x.340*inv(~x.174)), nR.177>,
+                       pkR.178)
+    
+     7. $I    = $I.172
+        $R    = $R.173
+        ~nI   = ~nI.174
+        ~x    = ~x.175
+        Y     = x.340^(x.341*inv((~x.175*x.342)))
+        nR    = nR.178
+        pkR   = pkR.179
+        sigR  = sigR.180
+        z     = x.340^(x.341*inv(x.342))
+        z.1   = verify(sigR.180,
+                       <'sfb-aka/tr/R', 'tr', $I.172, $R.173, 'g'^~x.175, ~nI.174, 
+                        x.340^(x.341*inv((~x.175*x.342))), nR.178>,
+                       pkR.179)
+    
+     8. $I    = $I.175
+        $R    = $R.176
+        ~nI   = ~nI.177
+        ~x    = ~x.178
+        Y     = DH_neutral
+        nR    = nR.181
+        pkR   = pk(x.348)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.175, $R.176, 'g'^~x.178, ~nI.177, 
+                      DH_neutral, nR.181>,
+                     x.348)
+        z     = DH_neutral
+        z.1   = true
+    
+     9. $I    = $I.176
+        $R    = $R.177
+        ~nI   = ~nI.178
+        ~x    = ~x.179
+        Y     = Y.180
+        nR    = nR.182
+        pkR   = pk(x.350)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.176, $R.177, 'g'^~x.179, ~nI.178, 
+                      Y.180, nR.182>,
+                     x.350)
+        z     = Y.180^~x.179
+        z.1   = true
+    
+    10. $I    = $I.176
+        $R    = $R.177
+        ~nI   = ~nI.178
+        ~x    = ~x.179
+        Y     = z.191^inv(~x.179)
+        nR    = nR.182
+        pkR   = pk(x.350)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.176, $R.177, 'g'^~x.179, ~nI.178, 
+                      z.191^inv(~x.179), nR.182>,
+                     x.350)
+        z     = z.191
+        z.1   = true
+    
+    11. $I    = $I.177
+        $R    = $R.178
+        ~nI   = ~nI.179
+        ~x    = ~x.180
+        Y     = x.348^x.349
+        nR    = nR.183
+        pkR   = pk(x.352)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.177, $R.178, 'g'^~x.180, ~nI.179, 
+                      x.348^x.349, nR.183>,
+                     x.352)
+        z     = x.348^(~x.180*x.349)
+        z.1   = true
+    
+    12. $I    = $I.177
+        $R    = $R.178
+        ~nI   = ~nI.179
+        ~x    = ~x.180
+        Y     = x.348^inv((~x.180*x.349))
+        nR    = nR.183
+        pkR   = pk(x.352)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.177, $R.178, 'g'^~x.180, ~nI.179, 
+                      x.348^inv((~x.180*x.349)), nR.183>,
+                     x.352)
+        z     = x.348^inv(x.349)
+        z.1   = true
+    
+    13. $I    = $I.177
+        $R    = $R.178
+        ~nI   = ~nI.179
+        ~x    = ~x.180
+        Y     = x.348^(x.349*inv(~x.180))
+        nR    = nR.183
+        pkR   = pk(x.352)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.177, $R.178, 'g'^~x.180, ~nI.179, 
+                      x.348^(x.349*inv(~x.180)), nR.183>,
+                     x.352)
+        z     = x.348^x.349
+        z.1   = true
+    
+    14. $I    = $I.178
+        $R    = $R.179
+        ~nI   = ~nI.180
+        ~x    = ~x.181
+        Y     = x.349^(x.350*inv((~x.181*x.351)))
+        nR    = nR.184
+        pkR   = pk(x.354)
+        sigR  = sign(<'sfb-aka/tr/R', 'tr', $I.178, $R.179, 'g'^~x.181, ~nI.180, 
+                      x.349^(x.350*inv((~x.181*x.351))), nR.184>,
+                     x.354)
+        z     = x.349^(x.350*inv(x.351))
+        z.1   = true
+  */
+
+rule (modulo E) R_Recoit_M3:
+   [ Etat_R_1( $I, $R, tr, k, pkI ), In( <'M3', sigI, preuve> ) ]
+  --[
+  Eq( verify(sigI, <'sfb-aka/tr/I', tr>, pkI), true ),
+  Eq( preuve, mac(<'fin', tr>, k) ), RepondantTermine( $I, $R, k )
+  ]->
+   [ ]
+
+  /*
+  rule (modulo AC) R_Recoit_M3:
+     [ Etat_R_1( $I, $R, tr, k, pkI ), In( <'M3', sigI, preuve> ) ]
+    --[
+    Eq( z, true ), Eq( preuve, mac(<'fin', tr>, k) ),
+    RepondantTermine( $I, $R, k )
+    ]->
+     [ ]
+    variants (modulo AC)
+    1. pkI   = pkI.14
+       sigI  = sigI.16
+       tr    = tr.17
+       z     = verify(sigI.16, <'sfb-aka/tr/I', tr.17>, pkI.14)
+    
+    2. pkI   = pk(x.22)
+       sigI  = sign(<'sfb-aka/tr/I', tr.15>, x.22)
+       tr    = tr.15
+       z     = true
+  */
+
+lemma executabilite_session:
+  exists-trace
+  "∃ I R k #i #j.
+    ((InitiateurTermine( I, R, k ) @ #i) ∧
+     (RepondantTermine( I, R, k ) @ #j)) ∧
+    (¬(∃ A #r. Compromis( A ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ I R k #i #j.
+  (InitiateurTermine( I, R, k ) @ #i) ∧ (RepondantTermine( I, R, k ) @ #j)
+ ∧
+  ∀ A #r. (Compromis( A ) @ #r) ⇒ ⊥"
+*/
+simplify
+solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #i )
+  case I_Emet_M1
+  solve( Etat_R_1( $I, $R, tr, kdf(z, <'tr', $I, $R, 'g'^~x, ~nI, Y, nR>),
+                   pk(x.1)
+         ) ▶₀ #j )
+    case R_Recoit_M1_Emet_M2
+    solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                     >,
+                     x.1)
+           ) @ #vk.10 )
+      case I_Recoit_M2_Emet_M3
+      solve( !KU( ~nI ) @ #vk.20 )
+        case I_Emet_M1
+        solve( !KU( ~nR ) @ #vk.9 )
+          case R_Recoit_M1_Emet_M2
+          solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR
+                           >,
+                           ~ltk.1)
+                 ) @ #vk.14 )
+            case R_Recoit_M1_Emet_M2
+            solve( !KU( mac(<'fin', 'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>,
+                            kdf('g'^(~x*~y), <'tr', $I, $R, 'g'^~x, ~nI, 'g'^~y, ~nR>))
+                   ) @ #vk.16 )
+              case I_Recoit_M2_Emet_M3
+              solve( !KU( pk(~ltk) ) @ #vk.19 )
+                case Enregistrement_Partenaire
+                solve( !KU( 'g'^~x ) @ #vk.20 )
+                  case I_Emet_M1
+                  solve( !KU( 'g'^~y ) @ #vk.17 )
+                    case R_Recoit_M1_Emet_M2
+                    SOLVED // trace found
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma P1a_repondant_authentifie_initiateur:
+  all-traces
+  "∀ I R k #j.
+    ((RepondantTermine( I, R, k ) @ #j) ∧
+     (¬(∃ #c. (Compromis( I ) @ #c) ∧ (#c < #j)))) ⇒
+    (∃ #i. (InitiateurEngage( I, R, k ) @ #i) ∧ (#i < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #j.
+  (RepondantTermine( I, R, k ) @ #j)
+ ∧
+  (∀ #c. (Compromis( I ) @ #c) ⇒ ¬(#c < #j)) ∧
+  (∀ #i. (InitiateurEngage( I, R, k ) @ #i) ⇒ ¬(#i < #j))"
+*/
+simplify
+solve( Etat_R_1( $I, $R, tr, k, pk(x) ) ▶₀ #j )
+  case R_Recoit_M1_Emet_M2
+  solve( splitEqs(1) )
+    case split_case_1
+    solve( !KU( sign(<'sfb-aka/tr/I', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>, x)
+           ) @ #vk.3 )
+      case c_sign
+      solve( !KU( mac(<'fin', 'tr', $I, $R, X, nI, 'g'^~y, ~nR>,
+                      kdf(X^~y, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>))
+             ) @ #vk.4 )
+        case c_mac
+        solve( !KU( kdf(X^~y, <'tr', $I, $R, X, nI, 'g'^~y, ~nR>) ) @ #vk.28 )
+          case c_kdf
+          solve( !KU( X^~y ) @ #vk.30 )
+            case R_Recoit_M1_Emet_M2
+            solve( !KU( pk(x) ) @ #vk.16 )
+              case Enregistrement_Partenaire
+              solve( !KU( ~ltk ) @ #vk.24 )
+                case Compromission_Cle_Long_Terme
+                solve( !KU( ~nR ) @ #vk.28 )
+                  case R_Recoit_M1_Emet_M2
+                  SOLVED // trace found
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma P1b_initiateur_authentifie_repondant:
+  all-traces
+  "∀ I R k #j.
+    ((InitiateurTermine( I, R, k ) @ #j) ∧
+     (¬(∃ #c. (Compromis( R ) @ #c) ∧ (#c < #j)))) ⇒
+    (∃ #i. (RepondantEngage( I, R, k ) @ #i) ∧ (#i < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ I R k #j.
+  (InitiateurTermine( I, R, k ) @ #j)
+ ∧
+  (∀ #c. (Compromis( R ) @ #c) ⇒ ¬(#c < #j)) ∧
+  (∀ #i. (RepondantEngage( I, R, k ) @ #i) ⇒ ¬(#i < #j))"
+*/
+simplify
+solve( Etat_I_1( $I, $R, ~x, ~nI, ltkI, pk(x.1) ) ▶₀ #j )
+  case I_Emet_M1
+  solve( !KU( sign(<'sfb-aka/tr/R', 'tr', $I, $R, 'g'^~x, ~nI, Y, nR>,
+                   ~ltk.1)
+         ) @ #vk.6 )
+    case R_Recoit_M1_Emet_M2
+    by contradiction /* from formulas */
+  next
+    case c_sign
+    solve( !KU( ~ltk.1 ) @ #vk.9 )
+      case Compromission_Cle_Long_Terme
+      by contradiction /* from formulas */
+    qed
+  qed
+qed
+
+/* All wellformedness checks were successful. */
+
+/*
+Generated from:
+Tamarin version 1.12.0
+Maude version 3.5.1
+Git revision: 82780bbaf3328a45f624ddb41e51bf75425f851c (with uncommited changes), branch: master
+Compiled at: 2026-03-07 14:22:39.174278293 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: sfb_aka_sans_registre.spthy
+
+  processing time: 2.48s
+  
+  executabilite_session (exists-trace): verified (12 steps)
+  P1a_repondant_authentifie_initiateur (all-traces): falsified - found trace (11 steps)
+  P1b_initiateur_authentifie_repondant (all-traces): verified (6 steps)
+
+==============================================================================
+
+##### code/rest_bearer.spthy
+maude tool: 'maude'
+ checking version: 3.5.1. OK.
+ checking installation: OK.
+[Theory REST_Jeton_Porteur] Theory loaded
+[Theory REST_Jeton_Porteur] Theory translated
+[Theory REST_Jeton_Porteur] Derivation checks started
+[Theory REST_Jeton_Porteur] Derivation checks ended
+[Theory REST_Jeton_Porteur] Theory closed
+[Saturating Sources] Step 1 (Max 5)
+[Saturating Sources] Done
+theory REST_Jeton_Porteur
+
+begin
+
+// Function signature and definition of the equational theory E
+
+functions: fst/1, h/1, pair/2, snd/1
+equations: fst(<x.1, x.2>) = x.1, snd(<x.1, x.2>) = x.2
+
+rule (modulo E) Delivrance_Jeton:
+   [ Fr( ~t ) ] --[ Jeton( ~t ) ]-> [ !Jeton( $C, $S, ~t ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Client_Emet:
+   [ !Jeton( $C, $S, t ), Fr( ~ref ), Fr( ~montant ) ]
+  --[ ClientEmet( $C, $S, <~ref, ~montant> ) ]->
+   [ CanalSur( $C, $S, t, <~ref, ~montant> ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Terminaison_TLS:
+   [ CanalSur( $C, $S, t, i ) ] --> [ Out( <$C, $S, t, i> ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Service_Accepte:
+   [ !Jeton( $C, $S, t ), In( <$C, $S, t, i> ) ]
+  --[ ServiceAccepte( $C, $S, i ) ]->
+   [ ]
+
+  /* has exactly the trivial AC variant */
+
+lemma executabilite:
+  exists-trace
+  "∃ C S i #i.1 #j.
+    (ClientEmet( C, S, i ) @ #i.1) ∧ (ServiceAccepte( C, S, i ) @ #j)"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ C S i #i.1 #j.
+  (ClientEmet( C, S, i ) @ #i.1) ∧ (ServiceAccepte( C, S, i ) @ #j)"
+*/
+simplify
+solve( !Jeton( $C, $S, t ) ▶₀ #i )
+  case Delivrance_Jeton
+  solve( !Jeton( $C, $S, t.1 ) ▶₀ #j )
+    case Delivrance_Jeton
+    solve( !KU( ~ref ) @ #vk.7 )
+      case Terminaison_TLS
+      solve( !KU( ~t.1 ) @ #vk.6 )
+        case Terminaison_TLS
+        solve( !KU( ~montant ) @ #vk.8 )
+          case Terminaison_TLS
+          SOLVED // trace found
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma secret_jeton:
+  all-traces "∀ t #i. (Jeton( t ) @ #i) ⇒ (¬(∃ #r. K( t ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ t #i. (Jeton( t ) @ #i) ∧ ∃ #r. (K( t ) @ #r)"
+*/
+simplify
+solve( !KU( ~t ) @ #vk )
+  case Terminaison_TLS
+  SOLVED // trace found
+qed
+
+lemma authenticite_instruction:
+  all-traces
+  "∀ C S i #j.
+    (ServiceAccepte( C, S, i ) @ #j) ⇒
+    (∃ #i.1. (ClientEmet( C, S, i ) @ #i.1) ∧ (#i.1 < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ C S i #j.
+  (ServiceAccepte( C, S, i ) @ #j)
+ ∧
+  ∀ #i.1. (ClientEmet( C, S, i ) @ #i.1) ⇒ ¬(#i.1 < #j)"
+*/
+simplify
+solve( !Jeton( $C, $S, t ) ▶₀ #j )
+  case Delivrance_Jeton
+  solve( !KU( ~t ) @ #vk.5 )
+    case Terminaison_TLS
+    SOLVED // trace found
+  qed
+qed
+
+lemma authenticite_injective:
+  all-traces
+  "∀ C S i #j.
+    (ServiceAccepte( C, S, i ) @ #j) ⇒
+    (∃ #i.1.
+      ((ClientEmet( C, S, i ) @ #i.1) ∧ (#i.1 < #j)) ∧
+      (¬(∃ #j2. (ServiceAccepte( C, S, i ) @ #j2) ∧ (¬(#j2 = #j)))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ C S i #j.
+  (ServiceAccepte( C, S, i ) @ #j)
+ ∧
+  ∀ #i.1.
+   (ClientEmet( C, S, i ) @ #i.1)
+  ⇒
+   ((¬(#i.1 < #j)) ∨
+    (∃ #j2. (ServiceAccepte( C, S, i ) @ #j2) ∧ ¬(#j2 = #j)))"
+*/
+simplify
+solve( !Jeton( $C, $S, t ) ▶₀ #j )
+  case Delivrance_Jeton
+  solve( !KU( ~t ) @ #vk.5 )
+    case Terminaison_TLS
+    SOLVED // trace found
+  qed
+qed
+
+/*
+WARNING: the following wellformedness checks failed!
+
+Fact arity issues
+=================
+
+Same fact is used with different arities, i.e., Fact('A','B') is different from Fact('A'). 
+Check the arguments of your facts.
+  
+
+  Fact `jeton':
+
+    1. Rule `Delivrance_Jeton', arity 1
+         Jeton( ~t )
+    
+    2. Rule `Delivrance_Jeton', arity 3
+         !Jeton( $C, $S, ~t )
+    
+    3. Rule `Client_Emet', arity 3
+         !Jeton( $C, $S, t )
+    
+    4. Rule `Service_Accepte', arity 3
+         !Jeton( $C, $S, t )
+    
+    5. Lemma `secret_jeton', arity 1
+         Fact {factTag = ProtoFact Linear "Jeton" 1, factAnnotations = fromList [], factTerms = [Bound 1]}
+  
+
+Fact multiplicity issues
+========================
+
+Same fact is used with different multiplicities, i.e., !Fact() (Persistent fact) exists along with Fact() (Linear) in your rules. 
+Check the multiplicity (persistence) of your facts.
+  
+
+  Fact `jeton':
+
+    1. Rule `Delivrance_Jeton', multiplicity (persistence) Linear
+         Jeton( ~t )
+    
+    2. Rule `Delivrance_Jeton', multiplicity (persistence) Persistent
+         !Jeton( $C, $S, ~t )
+    
+    3. Rule `Client_Emet', multiplicity (persistence) Persistent
+         !Jeton( $C, $S, t )
+    
+    4. Rule `Service_Accepte', multiplicity (persistence) Persistent
+         !Jeton( $C, $S, t )
+    
+    5. Lemma `secret_jeton', multiplicity (persistence) Linear
+         Fact {factTag = ProtoFact Linear "Jeton" 1, factAnnotations = fromList [], factTerms = [Bound 1]}
+  
+*/
+
+/*
+Generated from:
+Tamarin version 1.12.0
+Maude version 3.5.1
+Git revision: 82780bbaf3328a45f624ddb41e51bf75425f851c (with uncommited changes), branch: master
+Compiled at: 2026-03-07 14:22:39.174278293 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: rest_bearer.spthy
+
+  processing time: 0.23s
+  
+  WARNING: 2 wellformedness check failed!
+           The analysis results might be wrong!
+  
+  executabilite (exists-trace): verified (7 steps)
+  secret_jeton (all-traces): falsified - found trace (3 steps)
+  authenticite_instruction (all-traces): falsified - found trace (4 steps)
+  authenticite_injective (all-traces): falsified - found trace (4 steps)
+
+==============================================================================

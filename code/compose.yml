@@ -1,0 +1,90 @@
+# ============================================================
+#  Banc d'essai SecureFinBridge : configuration CIBLE (bouchon Core Banking ISO 20022)
+#  Les services passerelle, reference-tls et injecteur reposent sur des
+#  composants non encore implementes (cf. memoire, tableau 8.1).
+#
+#  docker compose up -d                      démarre le banc
+#  docker compose exec netem ./profil.sh 3G  applique un profil réseau
+#  docker compose run injecteur              lance une campagne de mesure
+#
+#  Topologie :  injecteur --SFB-AKA--> passerelle --SFB-AKA--> bouchon-cbs
+#               |__________ mécanismes de référence (TLS 1.3 / OAuth 2.0) _|
+#  Le conteneur `netem` partage l'espace réseau de la passerelle et applique
+#  les profils d'émulation (débit, latence, perte, intermittence) avec
+#  `tc qdisc ... netem`, cf. annexe D, tableau des profils.
+# ============================================================
+name: sfb-banc
+
+services:
+
+  bouchon-cbs:
+    image: python:3.12-slim
+    container_name: sfb-bouchon-cbs
+    working_dir: /app
+    volumes:
+      - ./bouchon_cbs.py:/app/bouchon_cbs.py:ro
+    command: ["python3", "bouchon_cbs.py", "8443"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8443/sante')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    networks: [banc]
+
+  passerelle:
+    build:
+      context: ./passerelle          # projet Spring Boot (ValidateurInstruction, SfbAkaHandshake, ...)
+    container_name: sfb-passerelle
+    environment:
+      SFB_CBS_URL: http://bouchon-cbs:8443/pacs008
+      SFB_REGISTRE: /config/registre.json      # identifiants + clés publiques des partenaires
+      SFB_SUITE: X25519-ECDSA_P256-SHA256-AES128GCM
+      SFB_MODE_SIGNE: "false"                  # "true" : signature par instruction (mode P5 strict)
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./config:/config:ro
+      - ./mesures:/mesures
+    depends_on:
+      bouchon-cbs:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    cap_add: [NET_ADMIN]                       # requis pour que netem agisse sur cette interface
+    networks: [banc]
+
+  netem:
+    image: alpine:3.20
+    container_name: sfb-netem
+    network_mode: "service:passerelle"         # même pile réseau que la passerelle
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ./profil.sh:/profil.sh:ro
+    command: ["sh", "-c", "apk add --no-cache iproute2 >/dev/null && sleep infinity"]
+    depends_on: [passerelle]
+
+  reference-tls:
+    image: nginx:1.27-alpine                   # terminaison TLS 1.3 de référence (comparaison)
+    container_name: sfb-reference-tls
+    volumes:
+      - ./reference/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./reference/certs:/etc/nginx/certs:ro
+    depends_on: [bouchon-cbs]
+    networks: [banc]
+
+  injecteur:
+    image: grafana/k6:0.54.0
+    container_name: sfb-injecteur
+    profiles: [mesure]                         # ne démarre qu'avec `docker compose run injecteur`
+    volumes:
+      - ./injection:/scripts:ro
+      - ./mesures:/mesures
+    environment:
+      CIBLE_SFB: http://passerelle:8080
+      CIBLE_TLS: https://reference-tls:8443
+      PROFIL_PAYSIM: /scripts/paysim_profil.json
+    command: ["run", "--out", "json=/mesures/k6-$(date +%s).json", "/scripts/campagne.js"]
+    networks: [banc]
+
+networks:
+  banc:
+    driver: bridge

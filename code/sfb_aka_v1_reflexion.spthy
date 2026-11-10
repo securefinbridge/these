@@ -1,0 +1,197 @@
+/* ============================================================
+   SFB-AKA : modele complet en logique de reecriture multi-ensembliste
+   Syntaxe Tamarin Prover (>= 1.8).   Verification :
+       tamarin-prover --prove sfb_aka.spthy
+   ou, lemme par lemme :
+       tamarin-prover --prove=P4_non_rejeu sfb_aka.spthy
+
+   Le modele couvre l'ETABLISSEMENT DE SESSION (trois messages, signes,
+   lies au registre de partenaires) puis le TRAITEMENT DES INSTRUCTIONS
+   (AEAD + MAC + compteur monotone + journal chaine).
+
+   Correspondance avec les proprietes du chapitre 4 :
+     P1a/P1b  authentification mutuelle injective      (lemmes P1a_*, P1b_*)
+     P2       confidentialite du montant               (lemme P2_secret_montant)
+     P3       integrite / accord sur l'instruction     (lemme P3_integrite)
+     P4       non-rejeu                                (lemme P4_non_rejeu)
+     P5       non-repudiation de session               (lemme P5_ancrage_journal)
+     P6       confidentialite persistante              (lemme P6_pfs)
+   Le lemme `executabilite` (exists-trace) garantit que le modele n'est pas
+   vacueux : il exhibe une execution complete qui atteint un journal.
+
+   VERSION 1, SANS ETIQUETTES DE ROLE : conservee pour la tracabilite.
+   Tamarin y falsifie P1a par reflexion (meme partenaire dans les deux
+   roles). La version corrigee est sfb_aka.spthy.
+
+   Le compteur est modelise par un successeur libre succ/1 : 'zero',
+   succ('zero'), ... : idiome standard qui evite l'arithmetique.
+   ============================================================ */
+
+theory SFB_AKA_v1_reflexion
+begin
+
+builtins: signing, diffie-hellman, hashing, symmetric-encryption
+
+functions: kdf/2, mac/2, succ/1
+
+/* ---------- Restrictions (contraintes du modele, non demontrees) ---------- */
+
+restriction Egalite:
+  "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+/* Chaque partenaire n'est enregistre qu'une fois (un registre, pas deux). */
+restriction Registre_Unique:
+  "All A #i #j. Enregistre(A) @ #i & Enregistre(A) @ #j ==> #i = #j"
+
+/* ---------- Registre des partenaires et cles a long terme ---------------- */
+
+rule Enregistrement_Partenaire:
+  [ Fr(~ltk) ]
+  --[ Enregistre($A) ]->
+  [ !Ltk($A, ~ltk), !Registre($A, pk(~ltk)), Out(pk(~ltk)) ]
+
+/* Adversaire etendu : compromission d'une cle a long terme, a tout moment. */
+rule Compromission_Cle_Long_Terme:
+  [ !Ltk($A, ltk) ]
+  --[ Compromis($A) ]->
+  [ Out(ltk) ]
+
+/* ---------- Etablissement de session : M1 ------------------------------- */
+
+rule I_Emet_M1:
+  let X = 'g'^~x
+  in
+  [ Fr(~x), Fr(~nI), !Ltk($I, ltkI), !Registre($R, pkR) ]
+  --[ Debut_I($I, $R) ]->
+  [ Etat_I_1($I, $R, ~x, ~nI, ltkI, pkR), Out(<'M1', $I, X, ~nI>) ]
+
+/* ---------- R recoit M1 (controle de registre), emet M2 ----------------- */
+
+rule R_Recoit_M1_Emet_M2:
+  let Y  = 'g'^~y
+      tr = <'tr', $I, $R, X, nI, Y, ~nR>
+      k  = kdf(X^~y, tr)
+  in
+  [ Fr(~y), Fr(~nR), !Ltk($R, ltkR), !Registre($I, pkI), In(<'M1', $I, X, nI>) ]
+  --[ RepondantEngage($I, $R, k), SessionR($I, $R, k) ]->
+  [ Etat_R_1($I, $R, tr, k, pkI), Out(<'M2', Y, ~nR, sign(<'sfb-aka/tr', tr>, ltkR)>) ]
+
+/* ---------- I recoit M2, verifie, emet M3 -------------------------------- */
+
+rule I_Recoit_M2_Emet_M3:
+  let X  = 'g'^~x
+      tr = <'tr', $I, $R, X, ~nI, Y, nR>
+      k  = kdf(Y^~x, tr)
+  in
+  [ Etat_I_1($I, $R, ~x, ~nI, ltkI, pkR), In(<'M2', Y, nR, sigR>) ]
+  --[ Eq(verify(sigR, <'sfb-aka/tr', tr>, pkR), true),
+      InitiateurEngage($I, $R, k), InitiateurTermine($I, $R, k),
+      SignatureSession($I, k), SessionI($I, $R, k) ]->
+  [ Etat_I_2($I, $R, k, 'zero'),
+    Out(<'M3', sign(<'sfb-aka/tr', tr>, ltkI), mac(<'fin', tr>, k)>) ]
+
+/* ---------- R recoit M3, verifie signature et preuve de possession ------- */
+
+rule R_Recoit_M3:
+  [ Etat_R_1($I, $R, tr, k, pkI), In(<'M3', sigI, preuve>) ]
+  --[ Eq(verify(sigI, <'sfb-aka/tr', tr>, pkI), true),
+      Eq(preuve, mac(<'fin', tr>, k)),
+      RepondantTermine($I, $R, k) ]->
+  [ Etat_R_2($I, $R, k, 'zero') ]
+
+/* ---------- Traitement des instructions : emission par I ----------------- */
+
+rule I_Emet_Instruction:
+  let sid   = h(<'sid', k>)
+      instr = <sid, c, ~montant, $benef>
+  in
+  [ Etat_I_2($I, $R, k, c), Fr(~montant) ]
+  --[ InstructionEmise(sid, c, ~montant), Secret(~montant, $I, $R) ]->
+  [ Etat_I_2($I, $R, k, succ(c)),
+    Out(<senc(instr, k), mac(h(instr), k)>) ]
+
+/* ---------- Reception, validation et journalisation par R ---------------- */
+
+rule R_Recoit_Instruction:
+  let sid   = h(<'sid', k>)
+      instr = <sid, c, montant, benef>
+  in
+  [ Etat_R_2($I, $R, k, c), In(<senc(instr, k), etiquette>) ]
+  --[ Eq(etiquette, mac(h(instr), k)),
+      InstructionRecue(sid, c, montant),
+      Journalise(sid, c, h(instr)) ]->
+  [ Etat_R_2($I, $R, k, succ(c)), !Journal(sid, c, h(instr)) ]
+
+/* ============================================================
+   LEMMES (a demontrer)
+   ============================================================ */
+
+/* 0. Non-vacuite : il existe une execution complete jusqu'au journal. */
+lemma executabilite:
+  exists-trace
+  "Ex I R k sid c m #i #j #l.
+     InitiateurTermine(I, R, k) @ #i
+   & RepondantTermine(I, R, k)  @ #j
+   & InstructionRecue(sid, c, m) @ #l
+   & not (Ex A #r. Compromis(A) @ #r)"
+
+/* P1a. Le repondant authentifie l'initiateur (accord injectif),
+        sauf si la cle de I a ete compromise avant la terminaison. */
+lemma P1a_repondant_authentifie_initiateur:
+  "All I R k #j.
+     RepondantTermine(I, R, k) @ #j
+   & not (Ex #c. Compromis(I) @ #c & #c < #j)
+   ==> (Ex #i. InitiateurEngage(I, R, k) @ #i & #i < #j
+        & not (Ex I2 R2 #j2. RepondantTermine(I2, R2, k) @ #j2 & not (#j2 = #j)))"
+
+/* P1b. L'initiateur authentifie le repondant (accord injectif),
+        sauf si la cle de R a ete compromise avant la terminaison. */
+lemma P1b_initiateur_authentifie_repondant:
+  "All I R k #j.
+     InitiateurTermine(I, R, k) @ #j
+   & not (Ex #c. Compromis(R) @ #c & #c < #j)
+   ==> (Ex #i. RepondantEngage(I, R, k) @ #i & #i < #j
+        & not (Ex I2 R2 #j2. InitiateurTermine(I2, R2, k) @ #j2 & not (#j2 = #j)))"
+
+/* P2. Le montant d'une instruction reste secret tant qu'aucune des deux
+       cles a long terme n'a ete compromise AVANT l'emission. */
+lemma P2_secret_montant:
+  "All m I R #i.
+     Secret(m, I, R) @ #i
+   & not (Ex #c. Compromis(I) @ #c & #c < #i)
+   & not (Ex #c. Compromis(R) @ #c & #c < #i)
+   ==> not (Ex #r. K(m) @ #r)"
+
+/* P3. Integrite : toute instruction acceptee par R a ete emise telle
+       quelle par I (accord sur sid, compteur et montant). */
+lemma P3_integrite:
+  "All sid c m #j.
+     InstructionRecue(sid, c, m) @ #j
+   & not (Ex A #r. Compromis(A) @ #r & #r < #j)
+   ==> (Ex #i. InstructionEmise(sid, c, m) @ #i & #i < #j)"
+
+/* P4. Non-rejeu : une instruction (session, compteur) n'est acceptee
+       qu'une seule fois, meme en presence de sessions concurrentes. */
+lemma P4_non_rejeu:
+  "All sid c m #i #j.
+     InstructionRecue(sid, c, m) @ #i & InstructionRecue(sid, c, m) @ #j
+   ==> #i = #j"
+
+/* P5. Non-repudiation de session : toute entree de journal est ancree a
+       une session dont l'initiateur a signe la transcription. */
+lemma P5_ancrage_journal:
+  "All sid c e #j.
+     Journalise(sid, c, e) @ #j
+   & not (Ex A #r. Compromis(A) @ #r & #r < #j)
+   ==> (Ex I k #i. SignatureSession(I, k) @ #i & sid = h(<'sid', k>) & #i < #j)"
+
+/* P6. Confidentialite persistante : la cle de session reste secrete meme
+       si les cles a long terme sont compromises APRES son etablissement. */
+lemma P6_pfs:
+  "All I R k #i.
+     SessionI(I, R, k) @ #i
+   & not (Ex #c. Compromis(I) @ #c & #c < #i)
+   & not (Ex #c. Compromis(R) @ #c & #c < #i)
+   ==> not (Ex #r. K(k) @ #r)"
+
+end

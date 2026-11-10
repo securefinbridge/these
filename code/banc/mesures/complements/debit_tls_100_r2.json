@@ -1,0 +1,1 @@
+{"mecanisme":"tls","clients":16,"ordres_par_session":100,"duree_s":30,"acceptes":152072,"refuses":0,"motifs_refus":"{}","debit_tps":5069.07,"latence_mediane_ms":2.529,"latence_p95_ms":7.264}

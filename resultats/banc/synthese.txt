@@ -1,0 +1,41 @@
+Synthèse de la campagne SecureFinBridge
+========================================
+date        : 2026-11-09 (campagne réalisée en lots de 13:08 à 15:00 UTC)
+mode        : complet (répétitions=30, sessions/répétition=5) ; chauffe par lot : 30 (LAN, 3G), 10 (3G-DEGRADE, EDGE), 5 (GPRS)
+machine     : Linux 6.8.0-138-generic aarch64, machine virtuelle Linux du MacBook Pro de l'auteur
+coeurs      : 4
+memoire_go  : 3
+banc        : espace de noms réseau Linux (unshare -rn), sans Docker ; tc tbf+netem par filtre de port (7000, 7443), un qdisc par sens ; lien passerelle->bouchon non contraint
+lots        : JVM relancée à chaque lot (durée d'exécution limitée à 3 min) ; voir lots.txt
+noyau_banc  : 6.8.0-138-generic
+java        : openjdk version "21.0.5" 2024-10-15 LTS
+python      : Python 3.10.12
+
+LAN         sfb  n= 150 acceptées= 150 poignée méd=     1.9 ms IC95=[1.7;2.1] p95=     3.3 | bout méd=     3.9 IC95=[3.6;4.1] | crypto=1.99 ms | octets=384/884 | aberrantes=19
+LAN         tls  n= 150 acceptées= 150 poignée méd=     6.1 ms IC95=[5.8;6.4] p95=     9.2 | bout méd=     8.6 IC95=[8.1;9.0] | crypto=6.80 ms | octets=2618/4879 | aberrantes=12
+LAN         surcoût H3 = 23.13 %
+3G          sfb  n= 150 acceptées= 150 poignée méd=   632.9 ms IC95=[621.3;639.1] p95=   739.3 | bout méd=   960.9 IC95=[937.1;987.6] | crypto=10.29 ms | octets=384/884 | aberrantes=10
+3G          tls  n= 150 acceptées= 150 poignée méd=   680.2 ms IC95=[673.1;688.6] p95=   889.8 | bout méd=  1048.1 IC95=[1023.2;1056.6] | crypto=34.16 ms | octets=2618/4879 | aberrantes=21
+3G          surcoût H3 = 0.98 %
+3G-DEGRADE  sfb  n= 150 acceptées= 150 poignée méd=  1246.4 ms IC95=[1214.3;1279.8] p95=  2281.4 | bout méd=  1940.6 IC95=[1867.9;1999.3] | crypto=13.60 ms | octets=384/884 | aberrantes=30
+3G-DEGRADE  tls  n= 150 acceptées= 150 poignée méd=  1391.9 ms IC95=[1362.1;1420.6] p95=  2336.6 | bout méd=  2176.2 IC95=[2134.4;2244.2] | crypto=39.00 ms | octets=2618/4879 | aberrantes=29
+3G-DEGRADE  surcoût H3 = 0.62 %
+EDGE        sfb  n= 150 acceptées= 150 poignée méd=  1230.5 ms IC95=[1206.2;1249.4] p95=  1869.8 | bout méd=  1889.2 IC95=[1864.4;1927.1] | crypto=13.00 ms | octets=384/884 | aberrantes=22
+EDGE        tls  n= 150 acceptées= 150 poignée méd=  1324.2 ms IC95=[1307.1;1363.1] p95=  2171.6 | bout méd=  2053.1 IC95=[2009.9;2073.5] | crypto=37.98 ms | octets=2618/4879 | aberrantes=31
+EDGE        surcoût H3 = 0.63 %
+GPRS        sfb  n= 150 acceptées= 150 poignée méd=  1869.4 ms IC95=[1829.0;1908.4] p95=  3267.6 | bout méd=  2838.2 IC95=[2788.1;2926.3] | crypto=13.64 ms | octets=384/884 | aberrantes=37
+GPRS        tls  n= 150 acceptées= 150 poignée méd=  2105.6 ms IC95=[2024.2;2182.9] p95=  4391.4 | bout méd=  3381.9 IC95=[3213.2;3700.4] | crypto=42.47 ms | octets=2618/4879 | aberrantes=23
+GPRS        surcoût H3 = 0.40 %
+
+H3 (profil 3G, seuil 15.0 %) : confirmée
+Attaques : toutes neutralisées
+Réflexion v1 : {ATTAQUE_REUSSIE_INSTRUCTION_ACCEPTEE=10}
+Réflexion v2 : {SIGNATURE_INVALIDE=10}
+
+Complements
+{"repetitions": 10, "variantes": [{"separation": false, "observes": "{ATTAQUE_REUSSIE_SESSION_ETABLIE=10}"}, {"separation": true, "observes": "{SIGNATURE_INVALIDE=10}"}]}
+{"6a": {"repetitions": 10, "observes": "{AUCUNE_TRACE_DE_CLE_DE_SESSION=10}"}, "6b": {"montant_unitaire": 1900000, "envoyes": 11, "acceptes": 10, "cumul_accepte": 19000000, "premier_refus": "VELOCITE_DEPASSEE"}}
+débit sfb 1 ordres/session : [1696.97, 1734.67, 1764.1] tx/s ; latences [5.421, 5.651, 5.731]
+débit tls 1 ordres/session : [605.03, 633.13, 659.4] tx/s ; latences [11.006, 11.007, 11.326]
+débit sfb 100 ordres/session : [5844.17, 5896.07, 5896.3] tx/s ; latences [2.304, 2.314, 2.33]
+débit tls 100 ordres/session : [5069.07, 5444.3, 5515.97] tx/s ; latences [2.357, 2.376, 2.529]

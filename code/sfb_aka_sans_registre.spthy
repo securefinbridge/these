@@ -1,0 +1,87 @@
+/* ============================================================
+   PATRON SANS REGISTRE DE PARTENAIRES, en logique de reecriture
+   Contre-verification Tamarin du resultat ProVerif du chapitre 5
+   (sfb_aka_sans_registre.pv).   ./verifier.sh tamarin
+
+   Seule difference avec sfb_aka.spthy : le repondant ne consulte pas le
+   registre ; il utilise la cle publique annoncee par l'initiateur dans M1.
+   Attendu : P1a VIOLEE (un adversaire muni de sa propre bi-cle obtient une
+   session authentifiee aupres du repondant), P1b satisfaite.
+   ============================================================ */
+
+theory SFB_AKA_Sans_Registre
+begin
+
+builtins: signing, diffie-hellman, hashing
+
+functions: kdf/2, mac/2
+
+restriction Egalite:
+  "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+restriction Registre_Unique:
+  "All A #i #j. Enregistre(A) @ #i & Enregistre(A) @ #j ==> #i = #j"
+
+rule Enregistrement_Partenaire:
+  [ Fr(~ltk) ]
+  --[ Enregistre($A), Honnete($A) ]->
+  [ !Ltk($A, ~ltk), !Registre($A, pk(~ltk)), Out(pk(~ltk)) ]
+
+rule Compromission_Cle_Long_Terme:
+  [ !Ltk($A, ltk) ]
+  --[ Compromis($A) ]->
+  [ Out(ltk) ]
+
+rule I_Emet_M1:
+  let X = 'g'^~x
+  in
+  [ Fr(~x), Fr(~nI), !Ltk($I, ltkI), !Registre($R, pkR) ]
+  --[ Debut_I($I, $R) ]->
+  [ Etat_I_1($I, $R, ~x, ~nI, ltkI, pkR), Out(<'M1', $I, pk(ltkI), X, ~nI>) ]
+
+/* Le repondant accepte la cle publique annoncee dans M1 : pas de registre. */
+rule R_Recoit_M1_Emet_M2:
+  let Y  = 'g'^~y
+      tr = <'tr', $I, $R, X, nI, Y, ~nR>
+      k  = kdf(X^~y, tr)
+  in
+  [ Fr(~y), Fr(~nR), !Ltk($R, ltkR), In(<'M1', $I, pkI, X, nI>) ]
+  --[ RepondantEngage($I, $R, k) ]->
+  [ Etat_R_1($I, $R, tr, k, pkI), Out(<'M2', Y, ~nR, sign(<'sfb-aka/tr/R', tr>, ltkR)>) ]
+
+rule I_Recoit_M2_Emet_M3:
+  let X  = 'g'^~x
+      tr = <'tr', $I, $R, X, ~nI, Y, nR>
+      k  = kdf(Y^~x, tr)
+  in
+  [ Etat_I_1($I, $R, ~x, ~nI, ltkI, pkR), In(<'M2', Y, nR, sigR>) ]
+  --[ Eq(verify(sigR, <'sfb-aka/tr/R', tr>, pkR), true),
+      InitiateurEngage($I, $R, k), InitiateurTermine($I, $R, k) ]->
+  [ Out(<'M3', sign(<'sfb-aka/tr/I', tr>, ltkI), mac(<'fin', tr>, k)>) ]
+
+rule R_Recoit_M3:
+  [ Etat_R_1($I, $R, tr, k, pkI), In(<'M3', sigI, preuve>) ]
+  --[ Eq(verify(sigI, <'sfb-aka/tr/I', tr>, pkI), true),
+      Eq(preuve, mac(<'fin', tr>, k)),
+      RepondantTermine($I, $R, k) ]->
+  [ ]
+
+lemma executabilite_session:
+  exists-trace
+  "Ex I R k #i #j. InitiateurTermine(I, R, k) @ #i & RepondantTermine(I, R, k) @ #j
+   & not (Ex A #r. Compromis(A) @ #r)"
+
+/* P1a, sous la meme forme que dans sfb_aka.spthy. Attendu : violee. */
+lemma P1a_repondant_authentifie_initiateur:
+  "All I R k #j.
+     RepondantTermine(I, R, k) @ #j
+   & not (Ex #c. Compromis(I) @ #c & #c < #j)
+   ==> (Ex #i. InitiateurEngage(I, R, k) @ #i & #i < #j)"
+
+lemma P1b_initiateur_authentifie_repondant:
+  "All I R k #j.
+     InitiateurTermine(I, R, k) @ #j
+   & not (Ex #c. Compromis(R) @ #c & #c < #j)
+   ==> (Ex #i. RepondantEngage(I, R, k) @ #i & #i < #j)"
+
+end

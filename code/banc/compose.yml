@@ -1,0 +1,49 @@
+# =============================================================================
+#  Banc d'essai SecureFinBridge : campagne de mesures (chapitre 9, annexe D)
+#
+#  ./campagne.sh            lance la campagne complète (voir ce script)
+#  docker compose up -d     démarre seulement le banc
+#
+#  client ──(profil réseau : tc netem des deux côtés)──▶ passerelle ─(localhost)─▶ bouchon
+#  passerelle-v1 : passerelle SANS étiquettes de rôle (version 1), pour démontrer
+#                  l'attaque par réflexion du §7.3.4. Elle ne sert qu'à cette démonstration.
+# =============================================================================
+name: sfb-banc
+
+x-banc: &banc
+  build:
+    context: ..
+    dockerfile: banc/Dockerfile
+  image: sfb-banc:1.0
+  cap_add: [NET_ADMIN]               # nécessaire à tc netem dans le conteneur
+  networks: [banc]
+
+services:
+  passerelle:
+    <<: *banc
+    environment:
+      SFB_JOURNAL: /mesures/journal_passerelle.jsonl
+    volumes: ["./mesures:/mesures"]
+    healthcheck:
+      test: ["CMD", "sh", "-c", "python3 -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8443/sante')\""]
+      interval: 3s
+      retries: 20
+
+  passerelle-v1:
+    <<: *banc
+    environment:
+      SFB_ETIQUETTES_ROLE: "false"
+      SFB_JOURNAL: /mesures/journal_passerelle_v1.jsonl
+    volumes: ["./mesures:/mesures"]
+
+  client:
+    <<: *banc
+    command: ["sleep", "infinity"]
+    volumes: ["./mesures:/mesures"]
+    depends_on:
+      passerelle:
+        condition: service_healthy
+
+networks:
+  banc:
+    driver: bridge

@@ -1,0 +1,57 @@
+(* ============================================================
+   PATRON D'INTERCONNEXION 1 : interface REST protegee par jeton porteur
+   (OAuth 2.0 "bearer token", RFC 6749 / RFC 7519)
+
+   Abstraction : le transport TLS est suppose SUR entre le client et le
+   point de terminaison TLS ; mais ce point de terminaison n'est PAS le
+   service final (agregateur, passerelle d'API, reverse proxy, intégrateur).
+   Le segment aval est modelise comme un canal public : c'est l'extension
+   "canal partiellement compromis" du chapitre 4.
+
+   Proprietes examinees :
+     Q1  secret du jeton                         -> attendu : VIOLE
+     Q2  accord non injectif sur l'instruction   -> attendu : VIOLE (forge)
+     Q3  accord injectif (non-rejeu)             -> attendu : VIOLE (rejeu)
+   Un jeton porteur expose sur un segment aval permet de forger des
+   instructions arbitraires (Q2) et de rejouer les instructions legitimes (Q3).
+
+   Verification : proverif rest_bearer.pv
+   ============================================================ *)
+
+type key.
+
+free segmentAmont  : channel [private].   (* client <-> terminaison TLS : sur *)
+free segmentAval   : channel.             (* terminaison TLS <-> service : expose *)
+
+free jeton    : bitstring [private].      (* jeton porteur delivre par le serveur d'autorisation *)
+free montant  : bitstring [private].
+
+fun h(bitstring) : bitstring.
+
+event clientEmet(bitstring).
+event serviceAccepte(bitstring).
+
+(* Q1 *) query attacker(jeton).
+(* Q2 *) query m : bitstring; event(serviceAccepte(m)) ==> event(clientEmet(m)).
+(* Q3 *) query m : bitstring; inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m)).
+
+(* ---------- Client : plateforme Mobile Money ---------- *)
+let client =
+    new ref : bitstring;
+    let instruction = (ref, montant) in
+    event clientEmet(instruction);
+    out(segmentAmont, (jeton, instruction)).
+
+(* ---------- Terminaison TLS : relaie sans transformation ---------- *)
+let terminaisonTLS =
+    in(segmentAmont, (t : bitstring, i : bitstring));
+    out(segmentAval, (t, i)).
+
+(* ---------- Service : Core Banking expose derriere la passerelle ---------- *)
+let service =
+    in(segmentAval, (t : bitstring, i : bitstring));
+    if t = jeton then
+    event serviceAccepte(i).
+
+process
+    ( !client | !terminaisonTLS | !service )

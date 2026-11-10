@@ -1,0 +1,9 @@
+Verification summary:
+
+Query not attacker(pin[]) is false.
+
+Query not attacker(montant[]) is false.
+
+Query inj-event(plateformeExecute(b_1,m_1)) ==> inj-event(abonneValide(b_1,m_1)) is false.
+
+--------------------------------------------------------------

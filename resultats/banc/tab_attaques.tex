@@ -1,0 +1,23 @@
+\begin{table}[H]
+\centering
+\caption{Campagne d'attaque contre la passerelle \aka (profil LAN)}
+\label{tab:attaques-banc}
+\small
+\begin{tabularx}{\textwidth}{|C{0.06\textwidth}|X|L{0.27\textwidth}|C{0.13\textwidth}|}
+\hline
+\textbf{Sc.} & \textbf{Attaque} & \textbf{Issue attendue} & \textbf{Conforme}\\ \hline
+1 & Rejeu d'une poignée de main enregistrée & \texttt{SIGNATURE\_INVALIDE} & 10/10\\ \hline
+2 & Rejeu d'une instruction acceptée et dépassée & \texttt{REJEU\_DETECTE} & 10/10\\ \hline
+2 & Relance à l'identique de la dernière instruction (après délai) & \texttt{DOUBLON\_IDEMPOTENT} & 10/10\\ \hline
+3 & Altération d'une instruction en transit & \texttt{INTEGRITE\_COMPROMISE} & 10/10\\ \hline
+3 & Instruction hors habilitation (plafond) & \texttt{POLITIQUE\_REFUSEE} & 10/10\\ \hline
+4 & Réécriture de la liste des suites & \texttt{SIGNATURE\_INVALIDE} & 10/10\\ \hline
+-- & Partenaire non inscrit au registre (E1) & \texttt{REGISTRE\_INCONNU} & 10/10\\ \hline
+-- & Attaque par réflexion (\S\ref{sec:reflexion}) & \texttt{SIGNATURE\_INVALIDE} & 10/10\\ \hline
+\end{tabularx}
+\begin{flushleft}\footnotesize
+\smallskip
+Une attaque est neutralisée si la passerelle la rejette avec le motif attendu, journalisé, et n'accepte aucune instruction adverse. Pour la relance à l'identique, l'issue attendue est la réponse idempotente : le statut initial (acceptée) est renvoyé et le bouchon \emph{core banking} confirme une seule exécution.
+ Attaque par réflexion rejouée contre la version~1 du protocole (sans étiquettes de rôle) : instruction forgée acceptée dans 10 cas sur 10 ; contre la version~2 : 10 rejets sur 10 (\texttt{SIGNATURE\_INVALIDE}).
+\end{flushleft}
+\end{table}

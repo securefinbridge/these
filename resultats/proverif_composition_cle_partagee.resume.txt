@@ -1,0 +1,9 @@
+Verification summary:
+
+Query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) is true.
+
+Query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) is false.
+
+Query not attacker(montant[]) is false.
+
+--------------------------------------------------------------

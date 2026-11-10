@@ -1,0 +1,54 @@
+/* ============================================================
+   PATRON REST A JETON PORTEUR, en logique de reecriture
+   Contre-verification Tamarin du resultat ProVerif du chapitre 5
+   (rest_bearer.pv).   ./verifier.sh tamarin
+
+   Le client presente un jeton porteur avec chaque instruction. Le segment
+   client -> terminaison TLS est sur (canal securise modelise par un fait),
+   le segment terminaison TLS -> service est expose (canal public).
+   Attendu : secret du jeton VIOLE, authenticite des instructions VIOLEE
+   (forge) et forme injective VIOLEE (rejeu).
+   ============================================================ */
+
+theory REST_Jeton_Porteur
+begin
+
+builtins: hashing
+
+rule Delivrance_Jeton:
+  [ Fr(~t) ]
+  --[ Jeton(~t) ]->
+  [ !Jeton($C, $S, ~t) ]
+
+rule Client_Emet:
+  [ !Jeton($C, $S, t), Fr(~ref), Fr(~montant) ]
+  --[ ClientEmet($C, $S, <~ref, ~montant>) ]->
+  [ CanalSur($C, $S, t, <~ref, ~montant>) ]
+
+/* Terminaison TLS : relaie sans transformation sur le segment aval expose. */
+rule Terminaison_TLS:
+  [ CanalSur($C, $S, t, i) ]
+  -->
+  [ Out(<$C, $S, t, i>) ]
+
+rule Service_Accepte:
+  [ !Jeton($C, $S, t), In(<$C, $S, t, i>) ]
+  --[ ServiceAccepte($C, $S, i) ]->
+  [ ]
+
+lemma executabilite:
+  exists-trace
+  "Ex C S i #i #j. ClientEmet(C, S, i) @ #i & ServiceAccepte(C, S, i) @ #j"
+
+lemma secret_jeton:
+  "All t #i. Jeton(t) @ #i ==> not (Ex #r. K(t) @ #r)"
+
+lemma authenticite_instruction:
+  "All C S i #j. ServiceAccepte(C, S, i) @ #j ==> (Ex #i. ClientEmet(C, S, i) @ #i & #i < #j)"
+
+lemma authenticite_injective:
+  "All C S i #j. ServiceAccepte(C, S, i) @ #j
+   ==> (Ex #i. ClientEmet(C, S, i) @ #i & #i < #j
+        & not (Ex #j2. ServiceAccepte(C, S, i) @ #j2 & not (#j2 = #j)))"
+
+end

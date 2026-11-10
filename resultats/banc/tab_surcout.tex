@@ -1,0 +1,19 @@
+\begin{table}[H]
+\centering
+\caption{Surcoût cryptographique de \aka rapporté à la latence de bout en bout de TLS~1.3 (définition de l'annexe~\ref{ann:experimental})}
+\label{tab:surcout}
+\small
+\begin{tabularx}{\textwidth}{|L{0.15\textwidth}|X|X|X|X|}
+\hline
+\textbf{Profil} & \textbf{CPU des primitives \aka (ms)} & \textbf{CPU poignée TLS~1.3 (ms)} & \textbf{Bout en bout TLS~1.3 (ms)} & \textbf{Surcoût (\%)}\\ \hline
+LAN & 1,99 & 6,80 & 8,6 & 23,13\\ \hline
+3G & 10,29 & 34,16 & 1\,048,1 & 0,98\\ \hline
+3G dégradé & 13,60 & 39,00 & 2\,176,2 & 0,62\\ \hline
+EDGE & 13,00 & 37,98 & 2\,053,1 & 0,63\\ \hline
+GPRS & 13,64 & 42,47 & 3\,381,9 & 0,40\\ \hline
+\end{tabularx}
+\begin{flushleft}\footnotesize
+\smallskip
+Temps CPU médian cumulé, client et passerelle, des primitives de la poignée de main \aka (X25519, ECDSA P-256, HKDF, HMAC, SHA-256) ; pour TLS~1.3, temps CPU de la poignée de main complète. Cible de l'hypothèse~\ref{hyp:h3} : moins de 15\,\% sur le profil 3G.
+\end{flushleft}
+\end{table}

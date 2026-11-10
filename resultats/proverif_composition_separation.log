@@ -1,0 +1,136 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification
+# Date      : 2026-10-16 12:02:18 GMT
+# Machine   : Darwin 25.5.0 arm64 — Apple M2
+# Mémoire   : 16 Go
+# ProVerif  : Proverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre
+# ===========================================================
+Linear part:
+expo(expo(g,x),y) = expo(expo(g,y),x)
+Completing equations...
+Completed equations:
+expo(expo(g,x),y) = expo(expo(g,y),x)
+Convergent part: No equation.
+Process 0 (that is, the initial process):
+{1}out(reseau, (pk(skI),pk(skR)));
+(
+    {2}!
+    {3}let pkR: pkey = pk(skR) in
+    {4}new x: exponent;
+    {5}new nI: bitstring;
+    {6}let X: element = expo(g,x) in
+    {7}out(reseau, (pk(skI),X,nI));
+    {8}in(reseau, (Y: element,nR: bitstring,sigR: bitstring));
+    {9}let transcription: bitstring = (pk(skI),X,nI,Y,nR) in
+    {10}if (verifier(sigR,pkR) = (etqAKA,transcription)) then
+    {11}let cle: key = kdf(expo(Y,x),transcription) in
+    {12}event initiateurEngage(pk(skI),pkR,cle);
+    {13}out(reseau, sign((etqAKA,transcription),skI));
+    {14}event initiateurTermine(pk(skI),pkR,cle);
+    {15}out(reseau, aead(montant,cle))
+) | (
+    {16}!
+    {17}let pkI: pkey = pk(skI) in
+    {18}in(reseau, (pkA: pkey,X_1: element,nI_1: bitstring));
+    {19}if (pkA = pkI) then
+    {20}new y: exponent;
+    {21}new nR_1: bitstring;
+    {22}let Y_1: element = expo(g,y) in
+    {23}let transcription_1: bitstring = (pkA,X_1,nI_1,Y_1,nR_1) in
+    {24}let cle_1: key = kdf(expo(X_1,y),transcription_1) in
+    {25}event repondantEngage(pkA,pk(skR),cle_1);
+    {26}out(reseau, (Y_1,nR_1,sign((etqAKA,transcription_1),skR)));
+    {27}in(reseau, sigI: bitstring);
+    {28}if (verifier(sigI,pkA) = (etqAKA,transcription_1)) then
+    {29}event repondantTermine(pkA,pk(skR),cle_1)
+) | (
+    {30}!
+    {31}in(signalisation, libelle: bitstring);
+    {32}out(signalisation, sign((etqNotif,libelle),skR))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}out(reseau, (pk(skI),pk(skR)));
+(
+    {2}!
+    {4}new x: exponent;
+    {5}new nI: bitstring;
+    {6}let X: element = expo(g,x) in
+    {7}out(reseau, (pk(skI),X,nI));
+    {8}in(reseau, (Y: element,nR: bitstring,sigR: bitstring));
+    {9}let transcription: bitstring = (pk(skI),X,nI,Y,nR) in
+    {3}let pkR: pkey = pk(skR) in
+    {10}if (verifier(sigR,pkR) = (etqAKA,transcription)) then
+    {11}let cle: key = kdf(expo(Y,x),transcription) in
+    {12}event initiateurEngage(pk(skI),pkR,cle);
+    {13}out(reseau, sign((etqAKA,transcription),skI));
+    {14}event initiateurTermine(pk(skI),pkR,cle);
+    {15}out(reseau, aead(montant,cle))
+) | (
+    {16}!
+    {18}in(reseau, (pkA: pkey,X_1: element,nI_1: bitstring));
+    {17}let pkI: pkey = pk(skI) in
+    {19}if (pkA = pkI) then
+    {20}new y: exponent;
+    {21}new nR_1: bitstring;
+    {22}let Y_1: element = expo(g,y) in
+    {23}let transcription_1: bitstring = (pkA,X_1,nI_1,Y_1,nR_1) in
+    {24}let cle_1: key = kdf(expo(X_1,y),transcription_1) in
+    {25}event repondantEngage(pkA,pk(skR),cle_1);
+    {26}out(reseau, (Y_1,nR_1,sign((etqAKA,transcription_1),skR)));
+    {27}in(reseau, sigI: bitstring);
+    {28}if (verifier(sigI,pkA) = (etqAKA,transcription_1)) then
+    {29}event repondantTermine(pkA,pk(skR),cle_1)
+) | (
+    {30}!
+    {31}in(signalisation, libelle: bitstring);
+    {32}out(signalisation, sign((etqNotif,libelle),skR))
+)
+
+-- Query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k))
+goal reachable: b-inj-event(initiateurEngage(pk(skI[]),pk(skR[]),kdf(expo(expo(g,y_1),x_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ12_1) -> inj-event(repondantTermine(pk(skI[]),pk(skR[]),kdf(expo(expo(g,y_1),x_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ29_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+nI_2 = nI[!1 = @sid]
+x_1 = x[!1 = @sid]
+y_1 = y[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+nR_2 = nR_1[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+@occ29_1 = @occ29[sigI = sign((etqAKA,(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2)),skI[]),nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+@occ12_1 = @occ12[sigR = sign((etqAKA,(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2)),skR[]),nR = nR_2,Y = expo(g,y_1),!1 = @sid]
+RESULT inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) is true.
+-- Query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+select attacker(expo(g,x_1))/-5000
+Starting query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k))
+goal reachable: b-inj-event(repondantEngage(pk(skI[]),pk(skR[]),kdf(expo(expo(g,x_1),y_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ25_1) -> inj-event(initiateurTermine(pk(skI[]),pk(skR[]),kdf(expo(expo(g,y_1),x_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ14_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+nI_2 = nI[!1 = @sid]
+x_1 = x[!1 = @sid]
+y_1 = y[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+nR_2 = nR_1[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+@occ14_1 = @occ14[sigR = sign((etqAKA,(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2)),skR[]),nR = nR_2,Y = expo(g,y_1),!1 = @sid]
+@occ25_1 = @occ25[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+RESULT inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) is true.
+-- Query not attacker(montant[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(montant[])
+RESULT not attacker(montant[]) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) is true.
+
+Query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) is true.
+
+Query not attacker(montant[]) is true.
+
+--------------------------------------------------------------
+
+# Temps de vérification : 0.02 s

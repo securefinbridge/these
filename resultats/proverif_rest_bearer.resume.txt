@@ -1,0 +1,9 @@
+Verification summary:
+
+Query not attacker(jeton[]) is false.
+
+Query event(serviceAccepte(m)) ==> event(clientEmet(m)) is false.
+
+Query inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m)) is false.
+
+--------------------------------------------------------------

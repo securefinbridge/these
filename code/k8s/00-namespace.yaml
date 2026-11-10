@@ -1,0 +1,22 @@
+# Banc d'essai SecureFinBridge : espace de noms isolé du reste du cluster
+# (Les Meilleurs, Seshat). Aucun Ingress : rien n'est exposé sur Internet,
+# l'accès se fait par `kubectl port-forward` au travers d'une session SSH.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sfb-banc
+  labels:
+    projet: securefinbridge
+---
+# Plafond global du banc : il ne peut jamais priver les applications de
+# production de ressources, même si une campagne de charge s'emballe.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: plafond-banc
+  namespace: sfb-banc
+spec:
+  hard:
+    limits.cpu: "3"
+    limits.memory: 3Gi
+    pods: "10"

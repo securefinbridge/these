@@ -1,0 +1,30 @@
+# Test préalable : le noyau du VPS accepte-t-il tc/netem dans un pod ?
+# Le conteneur `netem` partage l'espace réseau du pod (comme le sidecar
+# prévu pour la passerelle) et a la seule capacité NET_ADMIN, limitée à ce
+# pod : les autres applications du serveur ne sont pas affectées.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-netem
+  namespace: sfb-banc
+spec:
+  restartPolicy: Never
+  containers:
+    - name: netem
+      image: alpine:3.20
+      securityContext:
+        capabilities: { add: ["NET_ADMIN"] }
+      command: ["sh", "-c"]
+      args:
+        - |
+          apk add --no-cache iproute2 curl >/dev/null
+          URL=http://bouchon-cbs.sfb-banc.svc.cluster.local:8443/sante
+          mesure () { for i in 1 2 3 4 5; do curl -s -o /dev/null -w "%{time_total}s\n" "$URL"; done; }
+          echo "--- sans profil ---"; mesure
+          tc qdisc add dev eth0 root netem delay 150ms 30ms distribution normal loss 0.5% || { echo "TEST NETEM : ECHEC (module sch_netem absent ?)"; exit 1; }
+          echo "--- profil 3G : +150 ms attendus ---"; mesure
+          tc qdisc del dev eth0 root
+          echo "TEST NETEM : OK"
+      resources:
+        requests: { cpu: 100m, memory: 64Mi }
+        limits:   { cpu: 200m, memory: 128Mi }

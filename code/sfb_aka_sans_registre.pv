@@ -1,0 +1,113 @@
+(* ============================================================
+   SFB-AKA : VARIANTE SANS REGISTRE DE PARTENAIRES (P1a VIOLEE)
+   Modele en pi-calcul applique, syntaxe ProVerif
+
+   Proprietes etablies ici : P1 (authentification mutuelle, accord injectif,
+   DANS LES DEUX SENS), P2 (confidentialite), P6 (confidentialite persistante).
+   P3, P4 et P5 relevent du traitement des instructions : elles sont
+   modelisees dans la theorie Tamarin (sfb_aka.spthy), sans y etre conclues.
+
+   Verification : proverif sfb_aka.pv
+   ============================================================ *)
+
+(* ---------- Types et canaux ---------- *)
+type pkey. type skey. type element. type exponent. type key.
+
+free reseau : channel.        (* canal public, entierement controle par l'adversaire *)
+const g : element [data].     (* generateur public : connu de l'adversaire *)
+
+(* ---------- Primitives cryptographiques ---------- *)
+fun pk(skey) : pkey.
+fun sign(bitstring, skey) : bitstring.
+reduc forall m : bitstring, k : skey; verifier(sign(m, k), pk(k)) = m.
+
+fun expo(element, exponent) : element.
+(* L'equation est restreinte au GENERATEUR g, et non a un element quelconque.
+   Quantifier sur un element arbitraire fait diverger la completion
+   d'equations de ProVerif : c'est l'idiome standard de modelisation DH.   *)
+equation forall x : exponent, y : exponent;
+         expo(expo(g, x), y) = expo(expo(g, y), x).
+
+fun kdf(element, bitstring) : key.
+fun aead(bitstring, key) : bitstring.
+reduc forall m : bitstring, k : key; ouvrir(aead(m, k), k) = m.
+
+(* ---------- Cles a long terme ---------- *)
+free skI : skey [private].    (* plateforme Mobile Money  *)
+free skR : skey [private].    (* systeme Core Banking     *)
+
+(* ---------- Donnee sensible ---------- *)
+free montant : bitstring [private].
+
+(* ---------- Evenements ---------- *)
+(* Sens 1 : le repondant authentifie l'initiateur *)
+event initiateurEngage(pkey, pkey, key).
+event repondantTermine(pkey, pkey, key).
+(* Sens 2 : l'initiateur authentifie le repondant *)
+event repondantEngage(pkey, pkey, key).
+event initiateurTermine(pkey, pkey, key).
+
+(* ============================================================
+   REQUETES
+   ============================================================ *)
+
+(* P1a : le Core Banking ne termine que si la plateforme a reellement engage
+   une session correspondante, et a chaque terminaison correspond au plus un
+   engagement (accord injectif). *)
+query a : pkey, b : pkey, k : key;
+      inj-event(repondantTermine(a, b, k)) ==> inj-event(initiateurEngage(a, b, k)).
+
+(* P1b : reciproque : la plateforme ne termine que si le Core Banking a
+   reellement engage. C'est cette requete qui rend l'authentification
+   MUTUELLE ; sans elle, seul un sens est etabli. *)
+query a : pkey, b : pkey, k : key;
+      inj-event(initiateurTermine(a, b, k)) ==> inj-event(repondantEngage(a, b, k)).
+
+(* P2 + P6 : le montant reste inaccessible a l'adversaire, y compris apres
+   la compromission des cles a long terme en phase 1 (confidentialite
+   persistante : les sessions anterieures resistent a la compromission). *)
+query attacker(montant).
+
+(* ---------- Processus initiateur : plateforme Mobile Money ---------- *)
+let initiateur(pkR : pkey) =
+    new x : exponent;
+    new nI : bitstring;
+    let X = expo(g, x) in
+    out(reseau, (pk(skI), X, nI));
+    in(reseau, (Y : element, nR : bitstring, sigR : bitstring));
+    let transcription = (pk(skI), X, nI, Y, nR) in
+    if verifier(sigR, pkR) = transcription then
+    let cle = kdf(expo(Y, x), transcription) in
+    event initiateurEngage(pk(skI), pkR, cle);
+    out(reseau, sign(transcription, skI));
+    event initiateurTermine(pk(skI), pkR, cle);
+    out(reseau, aead(montant, cle)).
+
+(* ---------- Processus repondant : systeme Core Banking ---------- *)
+let repondant(pkI : pkey) =
+    in(reseau, (pkA : pkey, X : element, nI : bitstring));
+    new y : exponent;
+    new nR : bitstring;
+    let Y = expo(g, y) in
+    let transcription = (pkA, X, nI, Y, nR) in
+    let cle = kdf(expo(X, y), transcription) in
+    event repondantEngage(pkA, pk(skR), cle);
+    out(reseau, (Y, nR, sign(transcription, skR)));
+    in(reseau, sigI : bitstring);
+    if verifier(sigI, pkA) = transcription then
+    event repondantTermine(pkA, pk(skR), cle).
+
+(* ============================================================
+   SYSTEME GLOBAL
+   La replication (!) porte la verification sur un nombre non borne de
+   sessions concurrentes : condition necessaire pour detecter les attaques
+   par entrelacement.
+   La phase 1 divulgue les cles a long terme APRES l'execution des sessions :
+   c'est le dispositif standard de test de la confidentialite persistante.
+   ============================================================ *)
+process
+    out(reseau, (pk(skI), pk(skR)));
+    (   !initiateur(pk(skR))
+      | !repondant(pk(skI))
+      | phase 1; out(reseau, skI); out(reseau, skR)
+    )

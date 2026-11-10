@@ -1,0 +1,102 @@
+(* ============================================================
+   ATTAQUE PAR COMPOSITION : reutilisation d'une cle a long terme entre le
+   canal de donnees (etablissement de session signe) et le canal de
+   signalisation (notifications signees dont une partie du contenu est
+   fournie par l'utilisateur).
+
+   Patron reel vise : la meme bi-cle de signature du Core Banking sert
+   (i) a signer les transcriptions d'etablissement de session sur le canal
+   de donnees et (ii) a signer des notifications / recus pousses vers
+   l'abonne sur le canal de signalisation, notifications dont le libelle
+   (nom du beneficiaire, motif) est choisi par l'utilisateur -- donc par
+   l'adversaire. Le second service devient un ORACLE DE SIGNATURE.
+
+   Il s'agit d'une attaque de type "chosen protocol" (Kelsey, Schneier et
+   Wagner, 1997) : aucun des deux protocoles n'est defectueux isolement.
+
+   Proprietes examinees (memes requetes que sfb_aka.pv) :
+     P1a  le repondant authentifie l'initiateur      -> attendu : satisfait
+     P1b  l'initiateur authentifie le repondant      -> attendu : VIOLE
+     P2   confidentialite du montant                  -> attendu : VIOLE
+     (P6 non testee : pas de phase de divulgation dans ce modele)
+   Contre-mesure verifiee dans composition_separation.pv.
+
+   Verification : proverif composition_cle_partagee.pv
+   ============================================================ *)
+
+type pkey. type skey. type element. type exponent. type key.
+
+free reseau        : channel.       (* canal de donnees *)
+free signalisation : channel.       (* canal de signalisation *)
+const g : element [data].
+
+fun pk(skey) : pkey.
+fun sign(bitstring, skey) : bitstring.
+reduc forall m : bitstring, k : skey; verifier(sign(m, k), pk(k)) = m.
+
+fun expo(element, exponent) : element.
+equation forall x : exponent, y : exponent;
+         expo(expo(g, x), y) = expo(expo(g, y), x).
+
+fun kdf(element, bitstring) : key.
+fun aead(bitstring, key) : bitstring.
+reduc forall m : bitstring, k : key; ouvrir(aead(m, k), k) = m.
+
+free skI : skey [private].
+free skR : skey [private].
+free montant : bitstring [private].
+
+event initiateurEngage(pkey, pkey, key).
+event repondantTermine(pkey, pkey, key).
+event repondantEngage(pkey, pkey, key).
+event initiateurTermine(pkey, pkey, key).
+
+query a : pkey, b : pkey, k : key;
+      inj-event(repondantTermine(a, b, k)) ==> inj-event(initiateurEngage(a, b, k)).
+query a : pkey, b : pkey, k : key;
+      inj-event(initiateurTermine(a, b, k)) ==> inj-event(repondantEngage(a, b, k)).
+query attacker(montant).
+
+(* ---------- Initiateur (identique a sfb_aka.pv) ---------- *)
+let initiateur(pkR : pkey) =
+    new x : exponent;
+    new nI : bitstring;
+    let X = expo(g, x) in
+    out(reseau, (pk(skI), X, nI));
+    in(reseau, (Y : element, nR : bitstring, sigR : bitstring));
+    let transcription = (pk(skI), X, nI, Y, nR) in
+    if verifier(sigR, pkR) = transcription then
+    let cle = kdf(expo(Y, x), transcription) in
+    event initiateurEngage(pk(skI), pkR, cle);
+    out(reseau, sign(transcription, skI));
+    event initiateurTermine(pk(skI), pkR, cle);
+    out(reseau, aead(montant, cle)).
+
+(* ---------- Repondant (identique a sfb_aka.pv, avec registre) ---------- *)
+let repondant(pkI : pkey) =
+    in(reseau, (pkA : pkey, X : element, nI : bitstring));
+    if pkA = pkI then
+    new y : exponent;
+    new nR : bitstring;
+    let Y = expo(g, y) in
+    let transcription = (pkA, X, nI, Y, nR) in
+    let cle = kdf(expo(X, y), transcription) in
+    event repondantEngage(pkA, pk(skR), cle);
+    out(reseau, (Y, nR, sign(transcription, skR)));
+    in(reseau, sigI : bitstring);
+    if verifier(sigI, pkA) = transcription then
+    event repondantTermine(pkA, pk(skR), cle).
+
+(* ---------- Service de notification sur le canal de signalisation ----------
+   Signe, avec LA MEME cle skR, un libelle fourni par l'abonne. Sans
+   separation de domaine, le libelle peut avoir la forme d'une transcription. *)
+let notification =
+    in(signalisation, libelle : bitstring);
+    out(signalisation, sign(libelle, skR)).
+
+process
+    out(reseau, (pk(skI), pk(skR)));
+    (   !initiateur(pk(skR))
+      | !repondant(pk(skI))
+      | !notification
+    )

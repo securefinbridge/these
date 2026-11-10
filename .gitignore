@@ -1,0 +1,8 @@
+.DS_Store
+*.class
+build/
+code/banc/mesures/*.jsonl
+code/banc/cles/
+code/banc/tls/
+__pycache__/
+*.pyc

@@ -1,0 +1,21 @@
+Modèle code/sfb_instructions_modulaire.spthy
+sources_instructions (all-traces): verified (35 steps)
+executabilite_instructions (exists-trace): verified (6 steps)
+cle_secrete (all-traces): verified (5 steps)
+etat_issu_session (all-traces): verified (7 steps)
+etat_unique (all-traces): verified (3 steps)
+P3_integrite (all-traces): verified (650 steps)
+P4_non_rejeu (all-traces): verified (2 steps)
+P5_journal_ancre (all-traces): verified (650 steps)
+
+Modèle code/sfb_aka_sans_registre.spthy
+executabilite_session (exists-trace): verified (12 steps)
+P1a_repondant_authentifie_initiateur (all-traces): falsified - found trace (11 steps)
+P1b_initiateur_authentifie_repondant (all-traces): verified (6 steps)
+
+Modèle code/rest_bearer.spthy
+executabilite (exists-trace): verified (7 steps)
+secret_jeton (all-traces): falsified - found trace (3 steps)
+authenticite_instruction (all-traces): falsified - found trace (4 steps)
+authenticite_injective (all-traces): falsified - found trace (4 steps)
+

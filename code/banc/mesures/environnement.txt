@@ -1,0 +1,10 @@
+date        : 2026-11-09 (campagne réalisée en lots de 13:08 à 15:00 UTC)
+mode        : complet (répétitions=30, sessions/répétition=5) ; chauffe par lot : 30 (LAN, 3G), 10 (3G-DEGRADE, EDGE), 5 (GPRS)
+machine     : Linux 6.8.0-138-generic aarch64, machine virtuelle Linux du MacBook Pro de l'auteur
+coeurs      : 4
+memoire_go  : 3
+banc        : espace de noms réseau Linux (unshare -rn), sans Docker ; tc tbf+netem par filtre de port (7000, 7443), un qdisc par sens ; lien passerelle->bouchon non contraint
+lots        : JVM relancée à chaque lot (durée d'exécution limitée à 3 min) ; voir lots.txt
+noyau_banc  : 6.8.0-138-generic
+java        : openjdk version "21.0.5" 2024-10-15 LTS
+python      : Python 3.10.12

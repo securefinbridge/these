@@ -1,0 +1,1 @@
+{"mecanisme":"sfb","clients":16,"ordres_par_session":100,"duree_s":30,"acceptes":176882,"refuses":0,"motifs_refus":"{}","debit_tps":5896.07,"latence_mediane_ms":2.304,"latence_p95_ms":5.838}

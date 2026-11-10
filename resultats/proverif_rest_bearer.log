@@ -1,0 +1,201 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification
+# Date      : 2026-10-16 12:02:18 GMT
+# Machine   : Darwin 25.5.0 arm64 — Apple M2
+# Mémoire   : 16 Go
+# ProVerif  : Proverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre
+# ===========================================================
+Process 0 (that is, the initial process):
+(
+    {1}!
+    {2}new ref: bitstring;
+    {3}let instruction: bitstring = (ref,montant) in
+    {4}event clientEmet(instruction);
+    {5}out(segmentAmont, (jeton,instruction))
+) | (
+    {6}!
+    {7}in(segmentAmont, (t: bitstring,i: bitstring));
+    {8}out(segmentAval, (t,i))
+) | (
+    {9}!
+    {10}in(segmentAval, (t_1: bitstring,i_1: bitstring));
+    {11}if (t_1 = jeton) then
+    {12}event serviceAccepte(i_1)
+)
+
+-- Query not attacker(jeton[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(jeton[])
+goal reachable: attacker(jeton[])
+
+Derivation:
+Abbreviations:
+ref_1 = ref[!1 = @sid]
+
+1. The message (jeton[],(ref_1,montant[])) may be sent on channel segmentAmont[] at output {5}.
+mess(segmentAmont[],(jeton[],(ref_1,montant[]))).
+
+2. The message (jeton[],(ref_1,montant[])) that may be sent on channel segmentAmont[] by 1 may be received at input {7}.
+So the message (jeton[],(ref_1,montant[])) may be sent to the attacker at output {8}.
+attacker((jeton[],(ref_1,montant[]))).
+
+3. By 2, the attacker may know (jeton[],(ref_1,montant[])).
+Using the function 1-proj-2-tuple the attacker may obtain jeton[].
+attacker(jeton[]).
+
+4. By 3, attacker(jeton[]).
+The goal is reached, represented in the following fact:
+attacker(jeton[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new ref: bitstring creating ref_2 at {2} in copy a
+
+event clientEmet((ref_2,montant)) at {4} in copy a
+
+out(segmentAmont, (jeton,(ref_2,montant))) at {5} in copy a received at {7} in copy a_1
+
+out(segmentAval, (~M,(~M_1,~M_2))) with ~M = jeton, ~M_1 = ref_2, ~M_2 = montant at {8} in copy a_1
+
+The attacker has the message ~M = jeton.
+A trace has been found.
+RESULT not attacker(jeton[]) is false.
+-- Query event(serviceAccepte(m)) ==> event(clientEmet(m)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(serviceAccepte(m)) ==> event(clientEmet(m))
+goal reachable: b-event(clientEmet((ref_1,montant[]))) && attacker(m) -> event(serviceAccepte(m))
+Abbreviations:
+ref_1 = ref[!1 = @sid]
+
+Derivation:
+Abbreviations:
+ref_1 = ref[!1 = @sid]
+
+1. We assume as hypothesis that
+attacker(m).
+
+2. The event clientEmet((ref_1,montant[])) may be executed at {4}.
+So the message (jeton[],(ref_1,montant[])) may be sent on channel segmentAmont[] at output {5}.
+mess(segmentAmont[],(jeton[],(ref_1,montant[]))).
+
+3. The message (jeton[],(ref_1,montant[])) that may be sent on channel segmentAmont[] by 2 may be received at input {7}.
+So the message (jeton[],(ref_1,montant[])) may be sent to the attacker at output {8}.
+attacker((jeton[],(ref_1,montant[]))).
+
+4. By 3, the attacker may know (jeton[],(ref_1,montant[])).
+Using the function 1-proj-2-tuple the attacker may obtain jeton[].
+attacker(jeton[]).
+
+5. By 4, the attacker may know jeton[].
+By 1, the attacker may know m.
+Using the function 2-tuple the attacker may obtain (jeton[],m).
+attacker((jeton[],m)).
+
+6. The message (jeton[],m) that the attacker may have by 5 may be received at input {10}.
+So event serviceAccepte(m) may be executed at {12}.
+event(serviceAccepte(m)).
+
+7. By 6, event(serviceAccepte(m)).
+The goal is reached, represented in the following fact:
+event(serviceAccepte(m)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new ref: bitstring creating ref_2 at {2} in copy a
+
+event clientEmet((ref_2,montant)) at {4} in copy a
+
+out(segmentAmont, (jeton,(ref_2,montant))) at {5} in copy a received at {7} in copy a_1
+
+out(segmentAval, (~M,(~M_1,~M_2))) with ~M = jeton, ~M_1 = ref_2, ~M_2 = montant at {8} in copy a_1
+
+in(segmentAval, (~M,a_2)) with ~M = jeton at {10} in copy a_3
+
+event serviceAccepte(a_2) at {12} in copy a_3 (goal)
+
+The event serviceAccepte(a_2) is executed at {12} in copy a_3.
+A trace has been found.
+RESULT event(serviceAccepte(m)) ==> event(clientEmet(m)) is false.
+-- Query inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m))
+goal reachable: b-inj-event(clientEmet((ref_1,montant[])),@occ4_1) && attacker(m) -> inj-event(serviceAccepte(m),@occ12_1)
+Abbreviations:
+@occ12_1 = @occ12[i_1 = m,t_1 = jeton[],!1 = @sid]
+ref_1 = ref[!1 = @sid_1]
+@occ4_1 = @occ4[!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+@occ12_1 = @occ12[i_1 = m,t_1 = jeton[],!1 = @sid]
+ref_1 = ref[!1 = @sid_1]
+@occ4_1 = @occ4[!1 = @sid_1]
+
+1. We assume as hypothesis that
+attacker(m).
+
+2. The event clientEmet((ref_1,montant[])) (with occurrence name @occ4_1) may be executed at {4}.
+So the message (jeton[],(ref_1,montant[])) may be sent on channel segmentAmont[] at output {5}.
+mess(segmentAmont[],(jeton[],(ref_1,montant[]))).
+
+3. The message (jeton[],(ref_1,montant[])) that may be sent on channel segmentAmont[] by 2 may be received at input {7}.
+So the message (jeton[],(ref_1,montant[])) may be sent to the attacker at output {8}.
+attacker((jeton[],(ref_1,montant[]))).
+
+4. By 3, the attacker may know (jeton[],(ref_1,montant[])).
+Using the function 1-proj-2-tuple the attacker may obtain jeton[].
+attacker(jeton[]).
+
+5. By 4, the attacker may know jeton[].
+By 1, the attacker may know m.
+Using the function 2-tuple the attacker may obtain (jeton[],m).
+attacker((jeton[],m)).
+
+6. The message (jeton[],m) that the attacker may have by 5 may be received at input {10}.
+So event serviceAccepte(m) may be executed at {12} in session @sid.
+inj-event(serviceAccepte(m),@occ12_1).
+
+7. By 6, inj-event(serviceAccepte(m),@occ12_1).
+The goal is reached, represented in the following fact:
+inj-event(serviceAccepte(m),@occ12_1).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new ref: bitstring creating ref_2 at {2} in copy a
+
+event clientEmet((ref_2,montant)) at {4} in copy a
+
+out(segmentAmont, (jeton,(ref_2,montant))) at {5} in copy a received at {7} in copy a_1
+
+out(segmentAval, (~M,(~M_1,~M_2))) with ~M = jeton, ~M_1 = ref_2, ~M_2 = montant at {8} in copy a_1
+
+in(segmentAval, (~M,a_2)) with ~M = jeton at {10} in copy a_3
+
+event serviceAccepte(a_2) at {12} in copy a_3 (goal)
+
+The event serviceAccepte(a_2) is executed at {12} in copy a_3.
+A trace has been found.
+RESULT inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m)) is false.
+RESULT (even event(serviceAccepte(m)) ==> event(clientEmet(m)) is false.)
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(jeton[]) is false.
+
+Query event(serviceAccepte(m)) ==> event(clientEmet(m)) is false.
+
+Query inj-event(serviceAccepte(m)) ==> inj-event(clientEmet(m)) is false.
+
+--------------------------------------------------------------
+
+# Temps de vérification : 0.01 s

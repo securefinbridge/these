@@ -1,0 +1,214 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification
+# Date      : 2026-10-16 12:02:18 GMT
+# Machine   : Darwin 25.5.0 arm64 — Apple M2
+# Mémoire   : 16 Go
+# ProVerif  : Proverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre
+# ===========================================================
+Linear part:
+expo(expo(g,x),y) = expo(expo(g,y),x)
+Completing equations...
+Completed equations:
+expo(expo(g,x),y) = expo(expo(g,y),x)
+Convergent part: No equation.
+Process 0 (that is, the initial process):
+{1}out(reseau, (pk(skI),pk(skR)));
+(
+    {2}!
+    {3}let pkR: pkey = pk(skR) in
+    {4}new x: exponent;
+    {5}new nI: bitstring;
+    {6}let X: element = expo(g,x) in
+    {7}out(reseau, (pk(skI),X,nI));
+    {8}in(reseau, (Y: element,nR: bitstring,sigR: bitstring));
+    {9}let transcription: bitstring = (pk(skI),X,nI,Y,nR) in
+    {10}if (verifier(sigR,pkR) = transcription) then
+    {11}let cle: key = kdf(expo(Y,x),transcription) in
+    {12}event initiateurEngage(pk(skI),pkR,cle);
+    {13}out(reseau, sign(transcription,skI));
+    {14}event initiateurTermine(pk(skI),pkR,cle);
+    {15}out(reseau, aead(montant,cle))
+) | (
+    {16}!
+    {17}let pkI: pkey = pk(skI) in
+    {18}in(reseau, (pkA: pkey,X_1: element,nI_1: bitstring));
+    {19}new y: exponent;
+    {20}new nR_1: bitstring;
+    {21}let Y_1: element = expo(g,y) in
+    {22}let transcription_1: bitstring = (pkA,X_1,nI_1,Y_1,nR_1) in
+    {23}let cle_1: key = kdf(expo(X_1,y),transcription_1) in
+    {24}event repondantEngage(pkA,pk(skR),cle_1);
+    {25}out(reseau, (Y_1,nR_1,sign(transcription_1,skR)));
+    {26}in(reseau, sigI: bitstring);
+    {27}if (verifier(sigI,pkA) = transcription_1) then
+    {28}event repondantTermine(pkA,pk(skR),cle_1)
+) | (
+    {29}phase 1;
+    {30}out(reseau, skI);
+    {31}out(reseau, skR)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}out(reseau, (pk(skI),pk(skR)));
+(
+    {2}!
+    {4}new x: exponent;
+    {5}new nI: bitstring;
+    {6}let X: element = expo(g,x) in
+    {7}out(reseau, (pk(skI),X,nI));
+    {8}in(reseau, (Y: element,nR: bitstring,sigR: bitstring));
+    {9}let transcription: bitstring = (pk(skI),X,nI,Y,nR) in
+    {3}let pkR: pkey = pk(skR) in
+    {10}if (verifier(sigR,pkR) = transcription) then
+    {11}let cle: key = kdf(expo(Y,x),transcription) in
+    {12}event initiateurEngage(pk(skI),pkR,cle);
+    {13}out(reseau, sign(transcription,skI));
+    {14}event initiateurTermine(pk(skI),pkR,cle);
+    {15}out(reseau, aead(montant,cle))
+) | (
+    {16}!
+    {18}in(reseau, (pkA: pkey,X_1: element,nI_1: bitstring));
+    {19}new y: exponent;
+    {20}new nR_1: bitstring;
+    {21}let Y_1: element = expo(g,y) in
+    {22}let transcription_1: bitstring = (pkA,X_1,nI_1,Y_1,nR_1) in
+    {23}let cle_1: key = kdf(expo(X_1,y),transcription_1) in
+    {24}event repondantEngage(pkA,pk(skR),cle_1);
+    {25}out(reseau, (Y_1,nR_1,sign(transcription_1,skR)));
+    {26}in(reseau, sigI: bitstring);
+    {27}if (verifier(sigI,pkA) = transcription_1) then
+    {28}event repondantTermine(pkA,pk(skR),cle_1)
+) | (
+    {29}phase 1;
+    {30}out(reseau, skI);
+    {31}out(reseau, skR)
+)
+
+-- Query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 126 rules (60 with conclusion selected). Queue: 31 rules.
+Starting query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k))
+goal reachable: attacker(k) && attacker(X_2) && attacker(nI_2) -> inj-event(repondantTermine(pk(k),pk(skR[]),kdf(expo(X_2,y_1),(pk(k),X_2,nI_2,expo(g,y_1),nR_2))),@occ28_1)
+Abbreviations:
+y_1 = y[nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+nR_2 = nR_1[nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+@occ28_1 = @occ28[sigI = sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),k),nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+
+Derivation:
+Abbreviations:
+y_1 = y[nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+nR_2 = nR_1[nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+@occ28_1 = @occ28[sigI = sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),k),nI_1 = nI_2,X_1 = X_2,pkA = pk(k),!1 = @sid]
+
+1. We assume as hypothesis that
+attacker(nI_2).
+
+2. We assume as hypothesis that
+attacker(X_2).
+
+3. We assume as hypothesis that
+attacker(k).
+
+4. By 3, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+5. By 4, the attacker may know pk(k).
+By 2, the attacker may know X_2.
+By 1, the attacker may know nI_2.
+Using the function 3-tuple the attacker may obtain (pk(k),X_2,nI_2).
+attacker((pk(k),X_2,nI_2)).
+
+6. The message (pk(k),X_2,nI_2) that the attacker may have by 5 may be received at input {18}.
+So the message (expo(g,y_1),nR_2,sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),skR[])) may be sent to the attacker at output {25}.
+attacker((expo(g,y_1),nR_2,sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),skR[]))).
+
+7. By 6, the attacker may know (expo(g,y_1),nR_2,sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),skR[])).
+Using the function 2-proj-3-tuple the attacker may obtain nR_2.
+attacker(nR_2).
+
+8. By 6, the attacker may know (expo(g,y_1),nR_2,sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),skR[])).
+Using the function 1-proj-3-tuple the attacker may obtain expo(g,y_1).
+attacker(expo(g,y_1)).
+
+9. By 4, the attacker may know pk(k).
+By 2, the attacker may know X_2.
+By 1, the attacker may know nI_2.
+By 8, the attacker may know expo(g,y_1).
+By 7, the attacker may know nR_2.
+Using the function 5-tuple the attacker may obtain (pk(k),X_2,nI_2,expo(g,y_1),nR_2).
+attacker((pk(k),X_2,nI_2,expo(g,y_1),nR_2)).
+
+10. By 9, the attacker may know (pk(k),X_2,nI_2,expo(g,y_1),nR_2).
+By 3, the attacker may know k.
+Using the function sign the attacker may obtain sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),k).
+attacker(sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),k)).
+
+11. The message (pk(k),X_2,nI_2) that the attacker may have by 5 may be received at input {18}.
+The message sign((pk(k),X_2,nI_2,expo(g,y_1),nR_2),k) that the attacker may have by 10 may be received at input {26}.
+So event repondantTermine(pk(k),pk(skR[]),kdf(expo(X_2,y_1),(pk(k),X_2,nI_2,expo(g,y_1),nR_2))) may be executed at {28} in session @sid.
+inj-event(repondantTermine(pk(k),pk(skR[]),kdf(expo(X_2,y_1),(pk(k),X_2,nI_2,expo(g,y_1),nR_2))),@occ28_1).
+
+12. By 11, inj-event(repondantTermine(pk(k),pk(skR[]),kdf(expo(X_2,y_1),(pk(k),X_2,nI_2,expo(g,y_1),nR_2))),@occ28_1).
+The goal is reached, represented in the following fact:
+inj-event(repondantTermine(pk(k),pk(skR[]),kdf(expo(X_2,y_1),(pk(k),X_2,nI_2,expo(g,y_1),nR_2))),@occ28_1).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(reseau, (~M,~M_1)) with ~M = pk(skI), ~M_1 = pk(skR) at {1}
+
+in(reseau, (pk(a),a_1,a_2)) at {18} in copy a_3
+
+new y: exponent creating y_2 at {19} in copy a_3
+
+new nR_1: bitstring creating nR_3 at {20} in copy a_3
+
+event repondantEngage(pk(a),pk(skR),kdf(expo(a_1,y_2),(pk(a),a_1,a_2,expo(g,y_2),nR_3))) at {24} in copy a_3
+
+out(reseau, (~M_2,~M_3,~M_4)) with ~M_2 = expo(g,y_2), ~M_3 = nR_3, ~M_4 = sign((pk(a),a_1,a_2,expo(g,y_2),nR_3),skR) at {25} in copy a_3
+
+in(reseau, sign((pk(a),a_1,a_2,~M_2,~M_3),a)) with sign((pk(a),a_1,a_2,~M_2,~M_3),a) = sign((pk(a),a_1,a_2,expo(g,y_2),nR_3),a) at {26} in copy a_3
+
+event repondantTermine(pk(a),pk(skR),kdf(expo(a_1,y_2),(pk(a),a_1,a_2,expo(g,y_2),nR_3))) at {28} in copy a_3 (goal)
+
+The event repondantTermine(pk(a),pk(skR),kdf(expo(a_1,y_2),(pk(a),a_1,a_2,expo(g,y_2),nR_3))) is executed at {28} in copy a_3.
+A trace has been found.
+RESULT inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) is false.
+RESULT (even event(repondantTermine(a,b,k)) ==> event(initiateurEngage(a,b,k)) is false.)
+-- Query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) in process 1.
+Translating the process into Horn clauses...
+select attacker(expo(g,x_1))/-5000
+Completing...
+200 rules inserted. Base: 120 rules (61 with conclusion selected). Queue: 35 rules.
+Starting query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k))
+goal reachable: b-inj-event(repondantEngage(pk(skI[]),pk(skR[]),kdf(expo(expo(g,x_1),y_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ24_1) -> inj-event(initiateurTermine(pk(skI[]),pk(skR[]),kdf(expo(expo(g,y_1),x_1),(pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2))),@occ14_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+nI_2 = nI[!1 = @sid]
+x_1 = x[!1 = @sid]
+y_1 = y[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+nR_2 = nR_1[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+@occ14_1 = @occ14[sigR = sign((pk(skI[]),expo(g,x_1),nI_2,expo(g,y_1),nR_2),skR[]),nR = nR_2,Y = expo(g,y_1),!1 = @sid]
+@occ24_1 = @occ24[nI_1 = nI_2,X_1 = expo(g,x_1),pkA = pk(skI[]),!1 = @sid_1]
+RESULT inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) is true.
+-- Query not attacker_p1(montant[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker_p1(montant[])
+RESULT not attacker_p1(montant[]) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query inj-event(repondantTermine(a,b,k)) ==> inj-event(initiateurEngage(a,b,k)) is false.
+
+Query inj-event(initiateurTermine(a,b,k)) ==> inj-event(repondantEngage(a,b,k)) is true.
+
+Query not attacker_p1(montant[]) is true.
+
+--------------------------------------------------------------
+
+# Temps de vérification : 0.03 s

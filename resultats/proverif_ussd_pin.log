@@ -1,0 +1,163 @@
+# ===========================================================
+# SecureFinBridge — journal de vérification
+# Date      : 2026-10-16 12:02:18 GMT
+# Machine   : Darwin 25.5.0 arm64 — Apple M2
+# Mémoire   : 16 Go
+# ProVerif  : Proverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre
+# ===========================================================
+Process 0 (that is, the initial process):
+(
+    {1}!
+    {2}new beneficiaire: bitstring;
+    {3}event abonneValide(beneficiaire,montant);
+    {4}out(signalisation, (beneficiaire,montant,pin))
+) | (
+    {5}!
+    {6}in(signalisation, (b: bitstring,m: bitstring,p: bitstring));
+    {7}if (p = pin) then
+    {8}event plateformeExecute(b,m)
+)
+
+-- Query not attacker(pin[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(pin[])
+goal reachable: attacker(pin[])
+
+Derivation:
+Abbreviations:
+beneficiaire_1 = beneficiaire[!1 = @sid]
+
+1. The message (beneficiaire_1,montant[],pin[]) may be sent to the attacker at output {4}.
+attacker((beneficiaire_1,montant[],pin[])).
+
+2. By 1, the attacker may know (beneficiaire_1,montant[],pin[]).
+Using the function 3-proj-3-tuple the attacker may obtain pin[].
+attacker(pin[]).
+
+3. By 2, attacker(pin[]).
+The goal is reached, represented in the following fact:
+attacker(pin[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new beneficiaire: bitstring creating beneficiaire_2 at {2} in copy a
+
+event abonneValide(beneficiaire_2,montant) at {3} in copy a
+
+out(signalisation, (~M,~M_1,~M_2)) with ~M = beneficiaire_2, ~M_1 = montant, ~M_2 = pin at {4} in copy a
+
+The attacker has the message ~M_2 = pin.
+A trace has been found.
+RESULT not attacker(pin[]) is false.
+-- Query not attacker(montant[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(montant[])
+goal reachable: attacker(montant[])
+
+Derivation:
+Abbreviations:
+beneficiaire_1 = beneficiaire[!1 = @sid]
+
+1. The message (beneficiaire_1,montant[],pin[]) may be sent to the attacker at output {4}.
+attacker((beneficiaire_1,montant[],pin[])).
+
+2. By 1, the attacker may know (beneficiaire_1,montant[],pin[]).
+Using the function 2-proj-3-tuple the attacker may obtain montant[].
+attacker(montant[]).
+
+3. By 2, attacker(montant[]).
+The goal is reached, represented in the following fact:
+attacker(montant[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new beneficiaire: bitstring creating beneficiaire_2 at {2} in copy a
+
+event abonneValide(beneficiaire_2,montant) at {3} in copy a
+
+out(signalisation, (~M,~M_1,~M_2)) with ~M = beneficiaire_2, ~M_1 = montant, ~M_2 = pin at {4} in copy a
+
+The attacker has the message ~M_1 = montant.
+A trace has been found.
+RESULT not attacker(montant[]) is false.
+-- Query inj-event(plateformeExecute(b_1,m_1)) ==> inj-event(abonneValide(b_1,m_1)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(plateformeExecute(b_1,m_1)) ==> inj-event(abonneValide(b_1,m_1))
+goal reachable: attacker(b_1) && attacker(m_1) && b-inj-event(abonneValide(beneficiaire_1,montant[]),@occ3_1) -> inj-event(plateformeExecute(b_1,m_1),@occ8_1)
+Abbreviations:
+@occ8_1 = @occ8[p = pin[],m = m_1,b = b_1,!1 = @sid]
+beneficiaire_1 = beneficiaire[!1 = @sid_1]
+@occ3_1 = @occ3[!1 = @sid_1]
+
+Derivation:
+Abbreviations:
+@occ8_1 = @occ8[p = pin[],m = m_1,b = b_1,!1 = @sid]
+beneficiaire_1 = beneficiaire[!1 = @sid_1]
+@occ3_1 = @occ3[!1 = @sid_1]
+
+1. The event abonneValide(beneficiaire_1,montant[]) (with occurrence name @occ3_1) may be executed at {3}.
+So the message (beneficiaire_1,montant[],pin[]) may be sent to the attacker at output {4}.
+attacker((beneficiaire_1,montant[],pin[])).
+
+2. By 1, the attacker may know (beneficiaire_1,montant[],pin[]).
+Using the function 3-proj-3-tuple the attacker may obtain pin[].
+attacker(pin[]).
+
+3. We assume as hypothesis that
+attacker(m_1).
+
+4. We assume as hypothesis that
+attacker(b_1).
+
+5. By 4, the attacker may know b_1.
+By 3, the attacker may know m_1.
+By 2, the attacker may know pin[].
+Using the function 3-tuple the attacker may obtain (b_1,m_1,pin[]).
+attacker((b_1,m_1,pin[])).
+
+6. The message (b_1,m_1,pin[]) that the attacker may have by 5 may be received at input {6}.
+So event plateformeExecute(b_1,m_1) may be executed at {8} in session @sid.
+inj-event(plateformeExecute(b_1,m_1),@occ8_1).
+
+7. By 6, inj-event(plateformeExecute(b_1,m_1),@occ8_1).
+The goal is reached, represented in the following fact:
+inj-event(plateformeExecute(b_1,m_1),@occ8_1).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new beneficiaire: bitstring creating beneficiaire_2 at {2} in copy a
+
+event abonneValide(beneficiaire_2,montant) at {3} in copy a
+
+out(signalisation, (~M,~M_1,~M_2)) with ~M = beneficiaire_2, ~M_1 = montant, ~M_2 = pin at {4} in copy a
+
+in(signalisation, (a_1,a_2,~M_2)) with ~M_2 = pin at {6} in copy a_3
+
+event plateformeExecute(a_1,a_2) at {8} in copy a_3 (goal)
+
+The event plateformeExecute(a_1,a_2) is executed at {8} in copy a_3.
+A trace has been found.
+RESULT inj-event(plateformeExecute(b_1,m_1)) ==> inj-event(abonneValide(b_1,m_1)) is false.
+RESULT (even event(plateformeExecute(b_1,m_1)) ==> event(abonneValide(b_1,m_1)) is false.)
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(pin[]) is false.
+
+Query not attacker(montant[]) is false.
+
+Query inj-event(plateformeExecute(b_1,m_1)) ==> inj-event(abonneValide(b_1,m_1)) is false.
+
+--------------------------------------------------------------
+
+# Temps de vérification : 0.01 s

@@ -1,0 +1,54 @@
+# Bouchon Core Banking ISO 20022 (pacs.008 -> pacs.002).
+# Le script vient d'une ConfigMap créée depuis code/bouchon_cbs.py :
+#   kubectl -n sfb-banc create configmap bouchon-cbs-script \
+#     --from-file=bouchon_cbs.py --dry-run=client -o yaml | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bouchon-cbs
+  namespace: sfb-banc
+  labels: { app: bouchon-cbs }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bouchon-cbs }
+  template:
+    metadata:
+      labels: { app: bouchon-cbs }
+    spec:
+      containers:
+        - name: bouchon-cbs
+          image: python:3.12-slim
+          command: ["python3", "/app/bouchon_cbs.py", "8443"]
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          readinessProbe:
+            httpGet: { path: /sante, port: 8443 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /sante, port: 8443 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:            # annexe D : 1 cœur pour le bouchon
+            requests: { cpu: "1", memory: 128Mi }
+            limits:   { cpu: "1", memory: 256Mi }
+      volumes:
+        - name: script
+          configMap:
+            name: bouchon-cbs-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bouchon-cbs
+  namespace: sfb-banc
+spec:
+  type: ClusterIP
+  selector: { app: bouchon-cbs }
+  ports:
+    - port: 8443
+      targetPort: 8443

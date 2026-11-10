@@ -1,0 +1,14 @@
+\begin{table}[H]
+\centering
+\caption{Scénarios 5 et 6 exécutés sur le banc (profil LAN)}
+\label{tab:scenarios-5-6}
+\small
+\begin{tabularx}{\textwidth}{|C{0.06\textwidth}|L{0.36\textwidth}|X|}
+\hline
+\textbf{Sc.} & \textbf{Situation} & \textbf{Issue observée}\\ \hline
+5 & Service de notification partageant la clé de la passerelle, \emph{sans} séparation de domaine & Session usurpée établie avec la plateforme : 10/10\\ \hline
+5 & Même service, \emph{avec} étiquette de domaine (\aka) & Signature rejetée (\texttt{SIGNATURE\_INVALIDE}) : 10/10\\ \hline
+6a & Clés à long terme et état persistant de la passerelle (journal, clés) livrés après la session & Aucune trace de clé de session : 10/10\\ \hline
+6b & Clé de la plateforme compromise avant la session ; ordres de 1\,900\,000 FCFA en rafale, chacun sous le plafond & 10 ordres acceptés (19\,000\,000 FCFA), puis refus \texttt{VELOCITE\_DEPASSEE} au 11\textsuperscript{e}\\ \hline
+\end{tabularx}
+\end{table}
