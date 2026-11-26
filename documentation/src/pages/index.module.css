@@ -1,0 +1,48 @@
+.contenu { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+.hero { padding: 84px 0 64px; border-bottom: 1px solid var(--cauris-trait); background: var(--ifm-background-color); }
+.surtitre { color: var(--cauris-or); font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.8rem; margin-bottom: 18px; }
+.titre { font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 22px; }
+.chapo { font-size: 1.16rem; line-height: 1.65; color: var(--cauris-gris); max-width: 720px; margin-bottom: 30px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.bouton, .boutonClair { display: inline-block; padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 0.98rem; border: 1.5px solid var(--ifm-color-primary); transition: background-color 0.15s, color 0.15s; }
+.bouton { background: var(--ifm-color-primary); color: #fff; }
+.bouton:hover { background: var(--ifm-color-primary-darkest); border-color: var(--ifm-color-primary-darkest); color: #fff; text-decoration: none; }
+.boutonClair { background: transparent; color: var(--ifm-color-primary); }
+.boutonClair:hover { background: var(--cauris-fond-doux); text-decoration: none; }
+[data-theme='dark'] .bouton { color: #0b1512; }
+.chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 52px 0 0; border-top: 1px solid var(--cauris-trait); }
+.chiffres div { padding: 22px 20px 0 0; }
+.chiffres dt { font-size: 2.2rem; font-weight: 700; color: var(--ifm-color-primary); line-height: 1; }
+.chiffres dd { margin: 8px 0 0; color: var(--cauris-gris); font-size: 0.93rem; line-height: 1.4; }
+.section { padding: 68px 0; }
+.doux { background: var(--cauris-fond-doux); border-top: 1px solid var(--cauris-trait); border-bottom: 1px solid var(--cauris-trait); }
+.h2 { font-size: 1.85rem; letter-spacing: -0.01em; margin-bottom: 10px; }
+.intro { color: var(--cauris-gris); font-size: 1.06rem; max-width: 700px; margin-bottom: 30px; line-height: 1.6; }
+.note { color: var(--cauris-gris); font-size: 0.95rem; border-left: 3px solid var(--cauris-or); padding-left: 14px; margin-bottom: 24px; }
+.lien { margin-top: 22px; font-weight: 600; }
+.etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.etape { border: 1px solid var(--cauris-trait); border-radius: 10px; padding: 24px; background: var(--ifm-background-color); }
+.etape h3 { margin: 14px 0 6px; font-size: 1.12rem; }
+.etape p { margin: 0; color: var(--cauris-gris); font-size: 0.96rem; }
+.num { display: inline-flex; width: 34px; height: 34px; align-items: center; justify-content: center; border-radius: 50%; background: var(--cauris-or-clair); color: var(--cauris-or); font-weight: 700; }
+.messages { display: grid; gap: 12px; }
+.message { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 18px; background: var(--ifm-background-color); border: 1px solid var(--cauris-trait); border-radius: 10px; padding: 16px 20px; }
+.nom { font-weight: 700; font-size: 1.2rem; color: var(--ifm-color-primary); font-family: var(--ifm-font-family-monospace); }
+.corps { display: flex; flex-direction: column; gap: 2px; }
+.corps span { color: var(--cauris-gris); font-size: 0.94rem; }
+.octets { font-family: var(--ifm-font-family-monospace); font-weight: 600; color: var(--cauris-or); white-space: nowrap; }
+.grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.carte { border: 1px solid var(--cauris-trait); border-top: 3px solid var(--ifm-color-primary); border-radius: 10px; padding: 22px; }
+.carte h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.carte p { margin: 0; color: var(--cauris-gris); font-size: 0.95rem; line-height: 1.55; }
+.deux { display: grid; grid-template-columns: 1fr 1.15fr; gap: 44px; align-items: center; }
+.fin { text-align: left; }
+@media (max-width: 900px) {
+  .hero { padding: 52px 0 44px; }
+  .chiffres { grid-template-columns: repeat(2, 1fr); }
+  .etapes, .grille, .deux { grid-template-columns: 1fr; }
+  .message { grid-template-columns: 48px 1fr; }
+  .octets { grid-column: 2; }
+  .section { padding: 48px 0; }
+}
+.deux > * { min-width: 0; }

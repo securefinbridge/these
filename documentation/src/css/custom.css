@@ -1,0 +1,52 @@
+/* Cauris : fond blanc, texte anthracite, vert profond et or. Aucun dégradé. */
+:root {
+  --ifm-color-primary: #0b5d4b;
+  --ifm-color-primary-dark: #0a5444;
+  --ifm-color-primary-darker: #094f40;
+  --ifm-color-primary-darkest: #084135;
+  --ifm-color-primary-light: #0c6652;
+  --ifm-color-primary-lighter: #0d6b56;
+  --ifm-color-primary-lightest: #0f7961;
+  --cauris-or: #b8892b;
+  --cauris-or-clair: #f6f1e4;
+  --cauris-encre: #1c2422;
+  --cauris-gris: #5b6664;
+  --cauris-trait: #e3e7e5;
+  --cauris-fond-doux: #f7f9f8;
+  --ifm-background-color: #ffffff;
+  --ifm-font-color-base: var(--cauris-encre);
+  --ifm-heading-color: var(--cauris-encre);
+  --ifm-font-family-base: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --ifm-heading-font-weight: 650;
+  --ifm-code-font-size: 92%;
+  --ifm-navbar-shadow: none;
+  --ifm-global-radius: 8px;
+  --ifm-link-decoration: none;
+  --docusaurus-highlighted-code-line-bg: rgba(11, 93, 75, 0.08);
+}
+[data-theme='dark'] {
+  --ifm-color-primary: #4fc3a1;
+  --ifm-color-primary-dark: #3cb894;
+  --ifm-color-primary-darker: #38ae8c;
+  --ifm-color-primary-darkest: #2e8f73;
+  --ifm-color-primary-light: #66cbad;
+  --ifm-color-primary-lighter: #72cfb3;
+  --ifm-color-primary-lightest: #95dcc6;
+  --cauris-or: #d9ad55;
+  --cauris-or-clair: #2a2518;
+  --cauris-encre: #e8eeec;
+  --cauris-gris: #a3adab;
+  --cauris-trait: #2c3432;
+  --cauris-fond-doux: #171c1b;
+  --ifm-background-color: #111514;
+}
+.navbar { border-bottom: 1px solid var(--cauris-trait); }
+.navbar__title { font-weight: 700; letter-spacing: 0.01em; }
+.footer { border-top: 1px solid var(--cauris-trait); background: var(--cauris-fond-doux); }
+.footer__copyright { color: var(--cauris-gris); font-size: 0.85rem; }
+.markdown h2 { margin-top: 2.4rem; }
+.markdown table { display: table; width: 100%; }
+.markdown table th { background: var(--cauris-fond-doux); text-align: left; }
+.theme-doc-sidebar-container { border-right: 1px solid var(--cauris-trait) !important; }
+.menu__link--active:not(.menu__link--sublist) { font-weight: 600; }
+div[class*='announcementBar'] { border-bottom: 1px solid #e6dcc3; font-size: 0.88rem; }

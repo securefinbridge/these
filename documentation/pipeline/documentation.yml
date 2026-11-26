@@ -1,0 +1,86 @@
+# Cauris : construit et déploie la documentation développeur.
+# Portage du modèle GitLab de Les Meilleurs : image, kubectl apply, set image, rollout, vérification.
+name: Documentation (Cauris)
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: documentation-prod
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/securefinbridge/cauris-docs
+  NS: securefinbridge
+  URL: https://docs.securefinbridge.emmanuelsehou.com
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: documentation
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production-docs
+      url: https://docs.securefinbridge.emmanuelsehou.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Accès au cluster
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64" || { echo "::error::Secret KUBECONFIG_B64 absent (Settings > Secrets and variables > Actions)."; exit 1; }
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config || { echo "::error::KUBECONFIG_B64 n'est pas un base64 valide."; exit 1; }
+          chmod 600 ~/.kube/config
+          echo "Serveur API : $(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
+          kubectl cluster-info || { echo "::error::Cluster injoignable depuis GitHub (port 6443 fermé ou certificat expiré)."; exit 1; }
+      - name: Déploiement
+        run: |
+          kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f documentation/k8s/
+          kubectl set image deployment/cauris-docs cauris-docs="$IMAGE:${{ needs.build.outputs.tag }}" -n "$NS"
+          kubectl rollout status deployment/cauris-docs -n "$NS" --timeout=180s
+          kubectl get pods,ingress -n "$NS" -l app=cauris-docs -o wide || true
+      - name: Vérification en ligne
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/" || true)
+            echo "Tentative $i : $URL -> HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::warning::$URL ne répond pas encore 200 (DNS ou certificat en cours ?)."
+      - name: Diagnostic en cas d'échec
+        if: failure()
+        run: |
+          kubectl get deploy,rs,pods -n "$NS" -o wide || true
+          kubectl get events -n "$NS" --sort-by=.lastTimestamp | tail -n 25 || true
+          kubectl logs -n "$NS" -l app=cauris-docs --tail=60 || true
