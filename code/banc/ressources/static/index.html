@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="robots" content="noindex">
+<title>SecureFinBridge · démonstrateur de la passerelle SFB-AKA</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --fond: #ffffff; --texte: #2b2f33; --doux: #5b636b; --trait: #e2e5e8; --gris-pale: #f6f7f8;
+  --vert: #0b5d4b; --vert-fonce: #084a3c; --vert-pale: #e9f2ef;
+  --or: #b8892b; --or-pale: #f8f1e2;
+  --alerte: #9b2c2c; --alerte-pale: #f9ecec;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--fond); color: var(--texte);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--vert); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--or); outline-offset: 2px; }
+
+.bandeau {
+  position: sticky; top: 0; z-index: 10; padding: 9px 16px; text-align: center; font-size: .92rem;
+  background: var(--or-pale); border-bottom: 2px solid var(--or);
+}
+.bandeau strong { color: #7a5a17; }
+
+.page { max-width: 1080px; margin: 0 auto; padding: 0 16px 48px; }
+.entete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding: 30px 0 8px; }
+.entete h1 { margin: 0; font-size: 1.9rem; line-height: 1.2; letter-spacing: -.01em; color: var(--vert); }
+.entete p { margin: 4px 0 0; color: var(--doux); }
+.liens { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .95rem; }
+.liens span { color: var(--doux); }
+
+.zone { border: 1px solid var(--trait); border-radius: 10px; padding: 22px 24px; margin: 20px 0; }
+.zone h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 1.2rem; }
+.num {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--vert); color: #fff;
+  font-size: .9rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+}
+.zone > p.note, .note { margin: 0 0 14px; color: var(--doux); font-size: .95rem; max-width: 78ch; }
+
+.etat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 22px; margin: 14px 0 0; }
+.etat div { min-width: 0; }
+.etat dt { font-size: .76rem; letter-spacing: .05em; text-transform: uppercase; color: var(--doux); }
+.etat dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.pastille { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: .86rem; font-weight: 600; white-space: nowrap; }
+.pastille.ok { background: var(--vert-pale); color: var(--vert); }
+.pastille.ko { background: var(--alerte-pale); color: var(--alerte); }
+.pastille.or { background: var(--or-pale); color: #7a5a17; }
+.pastille.neutre { background: var(--gris-pale); color: var(--doux); }
+
+.btn {
+  appearance: none; border: 1px solid var(--vert); background: var(--vert); color: #fff; cursor: pointer;
+  font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px;
+}
+.btn:hover { background: var(--vert-fonce); }
+.btn.second { background: #fff; color: var(--vert); }
+.btn.second:hover { background: var(--vert-pale); }
+.btn.petit { padding: 5px 11px; font-size: .88rem; font-weight: 500; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+.resultat { margin-top: 14px; padding: 14px 16px; border-radius: 8px; background: var(--gris-pale); border-left: 4px solid var(--trait); }
+.resultat.accepte { background: var(--vert-pale); border-left-color: var(--vert); }
+.resultat.rejete { background: var(--or-pale); border-left-color: var(--or); }
+.resultat.erreur { background: var(--alerte-pale); border-left-color: var(--alerte); }
+.resultat h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.resultat p { margin: 4px 0; }
+.details { margin: 8px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; font-size: .9rem; }
+.details dt { color: var(--doux); }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+.mono { font-family: var(--mono); font-size: .86em; }
+
+.message { border: 1px solid var(--trait); border-left: 4px solid var(--vert); border-radius: 8px; padding: 12px 14px; margin: 10px 0; background: #fff; }
+.message.retour { border-left-color: var(--or); }
+.message header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.message header b { font-size: 1.05rem; }
+.message header .sens { color: var(--doux); font-size: .92rem; }
+.message header .taille { margin-left: auto; font-family: var(--mono); font-weight: 700; color: var(--vert); }
+.champs { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .86rem; table-layout: fixed; }
+.champs td { padding: 4px 8px 4px 0; vertical-align: top; border-top: 1px solid var(--trait); }
+.champs td:first-child { width: 34%; }
+.champs td.lg { width: 52px; white-space: nowrap; color: var(--doux); text-align: right; }
+.champs td.hex { font-family: var(--mono); font-size: .78rem; color: var(--doux); word-break: break-all; }
+.bilan { margin: 12px 0 0; font-weight: 600; }
+.bilan small { display: block; font-weight: 400; color: var(--doux); }
+
+.formulaire { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 18px; margin-bottom: 14px; }
+.formulaire label { display: block; font-size: .88rem; color: var(--doux); }
+.formulaire input {
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: var(--texte);
+  background: #fff; border: 1px solid #c9ced3; border-radius: 8px;
+}
+.scenarios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .scenarios { grid-template-columns: minmax(0, 1fr); } }
+.scenario { border: 1px solid var(--trait); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.scenario h3 { margin: 0; font-size: 1rem; }
+.scenario p { margin: 0; font-size: .92rem; color: var(--doux); }
+.scenario .attendu { color: var(--texte); }
+.scenario .btn { align-self: flex-start; }
+.scenario .resultat { margin-top: 2px; font-size: .92rem; }
+
+.chainage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: .92rem; }
+.defile { overflow-x: auto; }
+table.journal { width: 100%; border-collapse: collapse; font-size: .85rem; }
+table.journal th { text-align: left; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; color: var(--doux); font-weight: 600; padding: 6px 10px 6px 0; white-space: nowrap; }
+table.journal td { padding: 6px 10px 6px 0; border-top: 1px solid var(--trait); white-space: nowrap; vertical-align: top; }
+table.journal tr.recente td { background: var(--vert-pale); }
+table.journal td.vide { color: var(--doux); white-space: normal; padding: 14px 0; }
+
+.encadre { border: 1px solid var(--or); border-left: 4px solid var(--or); border-radius: 10px; padding: 18px 22px; margin: 20px 0; background: #fff; }
+.encadre h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.encadre p { margin: 6px 0; max-width: 82ch; }
+.pied { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--trait); color: var(--doux); font-size: .9rem; }
+@media (max-width: 560px) {
+  .zone { padding: 18px 16px; } .entete h1 { font-size: 1.55rem; }
+  .champs, .champs tbody, .champs tr, .champs td { display: block; }
+  .champs td, .champs td:first-child, .champs td.lg { width: auto; text-align: left; border-top: 0; padding: 0; }
+  .champs tr { border-top: 1px solid var(--trait); padding: 5px 0; }
+}
+</style>
+</head>
+<body>
+<div class="bandeau" role="note"><strong>Prototype de démonstration.</strong> Banque simulée par un bouchon ISO 20022. Clés de démonstration régénérées à chaque démarrage. Non destiné à la production.</div>
+
+<div class="page">
+  <div class="entete">
+    <div>
+      <h1>SecureFinBridge</h1>
+      <p>Passerelle de médiation Mobile Money – core banking · protocole SFB-AKA · console de démonstration</p>
+    </div>
+    <nav class="liens" aria-label="Liens">
+      <a href="https://github.com/securefinbridge/these" rel="noopener noreferrer">Dépôt GitHub</a>
+      <span>Documentation : à venir</span>
+    </nav>
+  </div>
+
+  <section class="zone" aria-labelledby="t-etat">
+    <h2 id="t-etat"><span class="num">1</span>État du service</h2>
+    <p class="note">La passerelle et le bouchon core banking tournent dans deux processus distincts, comme sur le banc d'essai. Cet état est relu toutes les trente secondes.</p>
+    <dl class="etat" id="etat" aria-live="polite"><div><dt>État</dt><dd>Lecture en cours…</dd></div></dl>
+  </section>
+
+  <section class="zone" aria-labelledby="t-session">
+    <h2 id="t-session"><span class="num">2</span>Ouvrir une session</h2>
+    <p class="note">La console ouvre une connexion TCP vers la passerelle, exécute la poignée de main SFB-AKA en trois messages, puis referme la connexion. Les tailles affichées sont relevées sur le fil à chaque clic.</p>
+    <div class="actions"><button class="btn" id="btn-session" type="button">Ouvrir une session SFB-AKA</button></div>
+    <div id="session" aria-live="polite"></div>
+  </section>
+
+  <section class="zone" aria-labelledby="t-ordre">
+    <h2 id="t-ordre"><span class="num">3</span>Envoyer un ordre</h2>
+    <p class="note">Chaque envoi ouvre une session neuve, scelle un ordre de virement pacs.008 et le transmet. La passerelle contrôle l'intégrité, la fraîcheur puis la politique, journalise sa décision et relaie l'ordre accepté au bouchon. <span id="bornes"></span></p>
+    <form id="form-ordre" novalidate>
+      <div class="formulaire">
+        <label>Montant (FCFA)<input id="montant" name="montant" type="number" inputmode="numeric" min="1" step="1" value="25000" required></label>
+        <label>Compte débiteur<input id="debiteur" name="compteDebiteur" type="text" maxlength="24" value="22670000001" autocomplete="off" spellcheck="false" required></label>
+        <label>Compte créditeur<input id="crediteur" name="compteCrediteur" type="text" maxlength="24" value="BF0010001" autocomplete="off" spellcheck="false" required></label>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btn-ordre" type="submit">Envoyer l'ordre</button>
+        <button class="btn second" id="btn-renvoi" type="button" hidden>Renvoyer le même ordre (même référence)</button>
+        <button class="btn second petit" id="btn-valide" type="button">Montant valide</button>
+        <button class="btn second petit" id="btn-plafond" type="button">Montant au-dessus du plafond</button>
+      </div>
+    </form>
+    <div id="ordre" aria-live="polite"></div>
+  </section>
+
+  <section class="zone" aria-labelledby="t-attaques">
+    <h2 id="t-attaques"><span class="num">4</span>Rejouer une attaque</h2>
+    <p class="note">Chaque bouton exécute une fois le scénario correspondant du banc d'attaque du mémoire, avec le même code. Un scénario est conforme lorsque le motif de rejet observé est exactement le motif attendu.</p>
+    <div class="scenarios" id="scenarios"></div>
+  </section>
+
+  <section class="zone" aria-labelledby="t-journal">
+    <h2 id="t-journal">Journal d'audit chaîné</h2>
+    <p class="note">Chaque décision de la passerelle est une entrée qui contient l'empreinte SHA-256 de l'entrée précédente. La console recalcule ce chaînage depuis l'entrée de genèse à chaque lecture. Il révèle toute altération d'une entrée antérieure ; la dernière entrée ne serait vérifiable que par comparaison avec une tête publiée ailleurs.</p>
+    <div class="chainage" id="chainage" aria-live="polite"></div>
+    <div class="defile">
+      <table class="journal">
+        <thead><tr><th>N°</th><th>Heure (UTC)</th><th>Session</th><th>Compteur</th><th>Décision</th><th>Motif</th><th>Empreinte précédente</th><th>Empreinte</th></tr></thead>
+        <tbody id="journal"><tr><td class="vide" colspan="8">Lecture en cours…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="encadre" aria-labelledby="t-role">
+    <h2 id="t-role">Qui parle à la passerelle dans cette démonstration ?</h2>
+    <p>La passerelle ne parle pas HTTP : elle écoute en TCP et n'accepte que des partenaires inscrits à son registre. Cette console tient donc le rôle de la plateforme Mobile Money. Elle détient la clé « plateforme », ouvre les sessions SFB-AKA et scelle les ordres à votre place.</p>
+    <p>Un partenaire réel ne passerait pas par cette page : il s'intégrerait en TCP, avec sa propre clé ECDSA P-256 inscrite au registre de la passerelle. À cette étape, les ports TCP de la passerelle ne sont pas ouverts sur Internet.</p>
+  </aside>
+
+  <footer class="pied">
+    SecureFinBridge, démonstrateur issu d'un mémoire de Master 2. Les durées affichées sont mesurées à l'instant entre la console et la passerelle, sur la même machine : elles ne disent rien d'un réseau mobile.
+  </footer>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const nombre = n => Number(n).toLocaleString('fr-FR');
+const court = (h, n) => (typeof h === 'string' && h.length > n) ? h.slice(0, n) + '…' : (h == null ? '' : String(h));
+
+const MOTIFS = {
+  ACCEPTE: "Ordre authentique, frais et conforme à la politique : journalisé, puis accepté par le bouchon core banking.",
+  REGISTRE_INCONNU: "L'identité présentée n'est pas inscrite au registre des partenaires.",
+  SIGNATURE_INVALIDE: "La signature ne couvre pas la transcription de cette session.",
+  PREUVE_INVALIDE: "La preuve de possession de la clé de session est fausse.",
+  SUITE_REFUSEE: "La suite cryptographique de référence n'a pas été proposée ou retenue.",
+  INTEGRITE_COMPROMISE: "La trame a été modifiée : le déchiffrement authentifié ou le code d'authentification échoue.",
+  REJEU_DETECTE: "Le compteur de cette trame a déjà été consommé dans la session.",
+  POLITIQUE_REFUSEE: "Le montant dépasse le plafond par ordre fixé par la politique de la passerelle.",
+  CORE_BANKING_REJET: "La passerelle a jugé l'ordre authentique et conforme, l'a journalisé (ACCP) puis transmis ; c'est le bouchon core banking qui l'a refusé, par exemple parce que cette référence a déjà été traitée. Le journal consigne la décision de la passerelle, pas la réponse de la banque.",
+  VELOCITE_DEPASSEE: "Trop d'ordres, ou un cumul trop élevé, pour ce partenaire dans la fenêtre glissante de la politique.",
+  DOUBLON_IDEMPOTENT: "Relance à l'identique de la dernière trame : le statut initial est renvoyé, sans seconde exécution."
+};
+
+function el(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined && texte !== null) e.textContent = String(texte);
+  return e;
+}
+function vider(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
+function ajouter(parent, ...enfants) { for (const x of enfants) if (x) parent.appendChild(x); return parent; }
+
+async function appel(methode, chemin, corps) {
+  const options = { method: methode, headers: { 'Accept': 'application/json' }, cache: 'no-store' };
+  if (corps !== undefined) { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(corps); }
+  let reponse;
+  try { reponse = await fetch(chemin, options); }
+  catch (e) { return { ok: false, statut: 0, json: null, message: "Service injoignable. Vérifiez la connexion, puis réessayez." }; }
+  let json = null;
+  try { json = await reponse.json(); } catch (e) { /* réponse non JSON : limitation de débit, par exemple */ }
+  let message = json && typeof json.erreur === 'string' ? json.erreur : null;
+  if (!reponse.ok && !message)
+    message = reponse.status === 429 ? "Trop de requêtes depuis cette adresse : patientez une minute, puis réessayez."
+                                     : "Le service a répondu " + reponse.status + ".";
+  return { ok: reponse.ok, statut: reponse.status, json, message };
+}
+
+function erreur(cible, message) {
+  const b = el('div', 'resultat erreur');
+  ajouter(b, el('h3', null, "Demande non aboutie"), el('p', null, message));
+  ajouter(vider(cible), b);
+}
+function ligne(dl, nom, valeur, mono) {
+  ajouter(dl, el('dt', null, nom), el('dd', mono ? 'mono' : null, valeur));
+}
+async function occupe(bouton, travail) {
+  bouton.disabled = true;
+  try { await travail(); } finally { bouton.disabled = false; }
+}
+
+// ---------- 1. état du service ------------------------------------------------
+let console_ = null;
+function item(dl, nom, contenu) {
+  const d = el('div'), dd = el('dd');
+  if (contenu instanceof Node) dd.appendChild(contenu); else dd.textContent = String(contenu);
+  ajouter(dl, ajouter(d, el('dt', null, nom), dd));
+}
+async function chargerEtat() {
+  const r = await appel('GET', '/api/v1/etat');
+  const dl = vider($('etat'));
+  if (!r.ok || !r.json) { item(dl, "État", el('span', 'pastille ko', r.message || "Indisponible")); return; }
+  const e = r.json, p = e.politique || {};
+  item(dl, "Passerelle SFB-AKA", el('span', 'pastille ' + (e.passerelleRepond ? 'ok' : 'ko'), e.passerelleRepond ? "Répond" : "Ne répond pas"));
+  item(dl, "Bouchon core banking", el('span', 'pastille ' + (e.bouchonRepond ? 'ok' : 'ko'), e.bouchonRepond ? "Répond" : "Ne répond pas"));
+  item(dl, "Démarré le", new Date(e.demarreLe).toLocaleString('fr-FR'));
+  item(dl, "Version", e.version + " · commit " + court(e.commit, 7).replace('…', ''));
+  item(dl, "Étiquettes de rôle", e.etiquettesRole ? "Activées" : "Désactivées");
+  if (p.plafond_par_ordre) item(dl, "Plafond par ordre", nombre(p.plafond_par_ordre) + " FCFA");
+  if (p.fenetre_secondes) item(dl, "Fenêtre de vélocité", nombre(p.fenetre_secondes) + " s");
+  if (p.ordres_max_par_fenetre) item(dl, "Ordres par fenêtre", nombre(p.ordres_max_par_fenetre) + " au plus");
+  if (p.montant_cumule_max_par_fenetre) item(dl, "Cumul par fenêtre", nombre(p.montant_cumule_max_par_fenetre) + " FCFA au plus");
+  if (!console_ && e.console) { console_ = e.console; preparerConsole(); }
+}
+function preparerConsole() {
+  $('montant').max = console_.montantMax;
+  $('bornes').textContent = "Plafond de la politique : " + nombre(console_.plafondPolitique) + " FCFA. La console laisse passer jusqu'à "
+    + nombre(console_.montantMax) + " FCFA, pour que le refus au-dessus du plafond vienne bien de la passerelle.";
+  const zone = vider($('scenarios'));
+  for (const s of console_.scenarios || []) {
+    const carte = el('div', 'scenario'), bouton = el('button', 'btn second', "Rejouer « " + s.nom + " »"), sortie = el('div');
+    bouton.type = 'button';
+    sortie.setAttribute('aria-live', 'polite');
+    const attendu = el('p', 'attendu');
+    ajouter(attendu, document.createTextNode("Rejet attendu : "), el('span', 'mono', s.attendu));
+    ajouter(carte, el('h3', null, s.nom + " · " + s.reference), el('p', null, s.description), attendu, bouton, sortie);
+    bouton.addEventListener('click', () => occupe(bouton, () => jouer(s.nom, sortie)));
+    zone.appendChild(carte);
+  }
+}
+
+// ---------- 2. session --------------------------------------------------------
+async function ouvrirSession() {
+  const cible = $('session'), r = await appel('POST', '/api/v1/sessions');
+  if (!r.ok || !r.json) { erreur(cible, r.message); return; }
+  const s = r.json;
+  vider(cible);
+  for (const m of s.messages) {
+    const bloc = el('div', 'message' + (m.nom === 'M2' ? ' retour' : '')), tete = el('header'), table = el('table', 'champs');
+    ajouter(tete, el('b', null, m.nom), el('span', 'sens', m.sens), el('span', 'taille', m.octets + " octets"));
+    for (const c of m.champs) {
+      const tr = el('tr');
+      ajouter(tr, el('td', null, c.nom), el('td', 'lg', c.octets + " o"), el('td', 'hex', c.hex));
+      table.appendChild(tr);
+    }
+    ajouter(cible, ajouter(bloc, tete, table));
+  }
+  const bilan = el('p', 'bilan', s.octetsMessages + " octets de messages + " + s.octetsCadrage + " octets de cadrage = "
+    + s.octetsSurLeFil + " octets sur le fil");
+  ajouter(bilan, el('small', null, "Session " + s.idSession + " établie en " + s.dureeMs.toLocaleString('fr-FR')
+    + " ms (mesure de cet essai), puis refermée. Aucune clé de session n'est affichée ni conservée."));
+  cible.appendChild(bilan);
+}
+
+// ---------- 3. ordre ----------------------------------------------------------
+let dernierOrdre = null, derniereSession = null;
+async function envoyerOrdre(corps) {
+  const cible = $('ordre'), r = await appel('POST', '/api/v1/ordres', corps);
+  if (!r.ok || !r.json) { erreur(cible, r.message); return; }
+  const a = r.json;
+  dernierOrdre = { montant: a.montant, compteDebiteur: corps.compteDebiteur, compteCrediteur: corps.compteCrediteur, reference: a.reference };
+  derniereSession = a.idSession;
+  $('btn-renvoi').hidden = false;
+  const b = el('div', 'resultat ' + (a.accepte ? 'accepte' : 'rejete')), dl = el('dl', 'details');
+  ajouter(b, el('h3', null, a.accepte ? "Ordre accepté" : "Ordre rejeté : " + a.motif),
+             el('p', null, MOTIFS[a.motif] || "Motif renvoyé par la passerelle."));
+  ligne(dl, "Montant", nombre(a.montant) + " FCFA");
+  ligne(dl, "Référence", a.reference, true);
+  ligne(dl, "Session", a.idSession + " · compteur " + a.compteur, true);
+  ligne(dl, "Empreinte de l'ordre", a.empreinteInstruction, true);
+  ligne(dl, "Trame scellée", a.octetsInstruction + " octets");
+  ligne(dl, "Durée de cet essai", a.dureePoigneeMs.toLocaleString('fr-FR') + " ms pour la poignée de main, "
+    + a.dureeTotaleMs.toLocaleString('fr-FR') + " ms de bout en bout");
+  ajouter(vider(cible), ajouter(b, dl));
+  chargerJournal();
+}
+function saisie() {
+  return { montant: Number($('montant').value), compteDebiteur: $('debiteur').value.trim(), compteCrediteur: $('crediteur').value.trim() };
+}
+
+// ---------- 4. attaques -------------------------------------------------------
+async function jouer(nom, sortie) {
+  const r = await appel('POST', '/api/v1/attaques/' + encodeURIComponent(nom));
+  if (!r.ok || !r.json) { erreur(sortie, r.message); return; }
+  const i = r.json, b = el('div', 'resultat ' + (i.conforme ? 'accepte' : 'erreur')), dl = el('dl', 'details');
+  ajouter(b, el('span', 'pastille ' + (i.conforme ? 'ok' : 'ko'), i.conforme ? "Conforme" : "Non conforme"));
+  ligne(dl, "Attendu", i.attendu, true);
+  ligne(dl, "Observé", i.observe, true);
+  ajouter(b, dl);
+  if (MOTIFS[i.observe]) b.appendChild(el('p', null, MOTIFS[i.observe]));
+  if (i.remarque) b.appendChild(el('p', null, i.remarque));
+  ajouter(vider(sortie), b);
+  chargerJournal();
+}
+
+// ---------- journal chaîné ------------------------------------------------------
+const DECISIONS = { ACCP: 'ok', RJCT: 'or', DOUBLON: 'neutre' };
+async function chargerJournal() {
+  const r = await appel('GET', '/api/v1/journal?n=20');
+  const etat = vider($('chainage')), corps = $('journal');
+  if (!r.ok || !r.json) { etat.appendChild(el('span', 'pastille ko', r.message || "Journal indisponible")); return; }
+  const j = r.json;
+  if (j.total === 0) etat.appendChild(el('span', 'pastille neutre', "Journal vide"));
+  else if (j.chainageVerifie) etat.appendChild(el('span', 'pastille ok', "Chaînage vérifié sur " + nombre(j.total) + (j.total > 1 ? " entrées" : " entrée")));
+  else etat.appendChild(el('span', 'pastille ko', j.premiereRupture === 1
+    ? "Chaînage rompu : l'entrée n° 1 ne part pas de l'empreinte de genèse"
+    : "Chaînage rompu : l'entrée n° " + j.premiereRupture + " ne renvoie pas à l'empreinte de l'entrée n° " + (j.premiereRupture - 1)));
+  if (j.total > 0) ajouter(etat, el('span', 'mono', "tête " + court(j.tete, 16)));
+  ajouter(etat, el('span', null, "Relu à " + new Date().toLocaleTimeString('fr-FR')));
+  vider(corps);
+  if (!j.entrees.length) {
+    const td = el('td', 'vide', "Aucune décision pour l'instant : envoyez un ordre ou rejouez une attaque.");
+    td.colSpan = 8;
+    corps.appendChild(ajouter(el('tr'), td));
+    return;
+  }
+  for (const e of j.entrees) {
+    const tr = el('tr', e.id_session && e.id_session === derniereSession ? 'recente' : null), decision = el('td');
+    decision.appendChild(el('span', 'pastille ' + (DECISIONS[e.decision] || 'neutre'), e.decision));
+    ajouter(tr, el('td', null, e.numero), el('td', 'mono', court(String(e.horodatage || '').slice(11), 12).replace('…', '')),
+      el('td', 'mono', e.id_session), el('td', null, e.compteur), decision, el('td', 'mono', e.motif),
+      el('td', 'mono', court(e.empreinte_precedente, 12)), el('td', 'mono', court(e.empreinte, 12)));
+    if (e.chainee === false) tr.lastChild.appendChild(el('span', 'pastille ko', "rupture"));
+    corps.appendChild(tr);
+  }
+}
+
+// ---------- branchements ---------------------------------------------------------
+$('btn-session').addEventListener('click', ev => occupe(ev.currentTarget, ouvrirSession));
+$('form-ordre').addEventListener('submit', ev => { ev.preventDefault(); occupe($('btn-ordre'), () => envoyerOrdre(saisie())); });
+$('btn-renvoi').addEventListener('click', ev => { if (dernierOrdre) occupe(ev.currentTarget, () => envoyerOrdre(dernierOrdre)); });
+$('btn-valide').addEventListener('click', () => { $('montant').value = 25000; });
+$('btn-plafond').addEventListener('click', () => { $('montant').value = console_ ? Math.round(console_.plafondPolitique * 2.5) : 5000000; });
+
+const visible = () => document.visibilityState === 'visible';
+chargerEtat();
+chargerJournal();
+setInterval(() => { if (visible()) chargerJournal(); }, 10000);
+setInterval(() => { if (visible()) chargerEtat(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (visible()) { chargerEtat(); chargerJournal(); } });
+</script>
+</body>
+</html>

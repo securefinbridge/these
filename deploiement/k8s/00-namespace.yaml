@@ -1,0 +1,43 @@
+# Démonstrateur SecureFinBridge : espace de noms dédié, isolé de la production
+# (Seshat Campus, Les Meilleurs) qui tourne sur le même cluster k3s.
+#
+# L'espace de noms est partagé avec la documentation (documentation/k8s/). Il est déclaré
+# sans étiquette, exactement comme le crée le pipeline de la documentation : les deux
+# `kubectl apply` ne se défont donc pas l'un l'autre.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: securefinbridge
+---
+# Plafond global : quoi qu'il arrive ici, la production garde ses ressources.
+# Le quota porte sur tout l'espace de noms, documentation et pods éphémères de
+# cert-manager compris ; chaque pod doit donc déclarer ses limites (voir LimitRange).
+# Compte au plus chargé : démonstrateur (1) + documentation en cours de mise à jour (2)
+# + deux pods de validation de certificat (2) = 5 pods, 1,6 cœur, 1,1 Gi.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: plafond-securefinbridge
+  namespace: securefinbridge
+spec:
+  hard:
+    limits.cpu: "2"
+    limits.memory: 2Gi
+    pods: "5"
+---
+# Valeurs par défaut pour un conteneur qui ne déclarerait pas ses ressources : sans elles,
+# le quota ci-dessus refuserait son pod avec un message peu parlant.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ressources-par-defaut
+  namespace: securefinbridge
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 25m
+        memory: 64Mi
+      default:
+        cpu: 200m
+        memory: 128Mi

@@ -1,0 +1,28 @@
+# Cloisonnement réseau du démonstrateur, qui est exposé sur Internet à côté de la production.
+#
+#  Entrées : seul le port 8080 (console HTTP) est joignable, par Traefik et par les sondes.
+#            Les ports 7000 et 7443 de la passerelle et 8443 du bouchon restent internes au pod,
+#            y compris vis-à-vis des autres pods du cluster.
+#  Sorties : aucune. Le pod ne parle qu'à lui-même (boucle locale) ; s'il était compromis, il ne
+#            pourrait joindre ni les services de production ni Internet. Vérifié : l'image
+#            fonctionne entièrement avec `docker run --network none`.
+#
+# Ne concerne que les pods app=sfb-demo : la documentation et cert-manager ne sont pas touchés.
+# Pour s'en passer : kubectl delete networkpolicy sfb-demo -n securefinbridge, puis retirer ce fichier.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sfb-demo
+  namespace: securefinbridge
+spec:
+  podSelector:
+    matchLabels:
+      app: sfb-demo
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress: []

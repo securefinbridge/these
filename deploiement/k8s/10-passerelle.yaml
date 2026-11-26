@@ -1,0 +1,119 @@
+# Démonstrateur SecureFinBridge : un seul pod, un seul conteneur.
+# Le conteneur lance la console HTTP (port 8080) qui démarre elle-même le bouchon core banking
+# (8443) et la passerelle (7000 SFB-AKA, 7443 TLS 1.3). Seul le port 8080 est servi : les ports
+# de la passerelle et du bouchon ne sortent pas du pod (voir 30-reseau.yaml).
+#
+# Prototype de démonstration : rien n'est persistant. Les clés et le journal vivent dans un
+# volume jetable et sont régénérés à chaque démarrage.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sfb-demo
+  namespace: securefinbridge
+  labels:
+    app: sfb-demo
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  # Recreate et non RollingUpdate : l'ancien pod s'arrête avant que le nouveau démarre.
+  # Deux pods à 1 cœur ne tiendraient pas dans le quota avec la documentation, et deux
+  # passerelles aux clés différentes ne doivent pas répondre en même temps.
+  # Contrepartie : moins d'une minute d'interruption à chaque déploiement.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sfb-demo
+  template:
+    metadata:
+      labels:
+        app: sfb-demo
+    spec:
+      automountServiceAccountToken: false      # le pod n'a aucune raison de parler à l'API du cluster
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      # Secret créé par le pipeline seulement tant que le paquet GHCR est privé ; s'il est
+      # absent (paquet public), l'image est tirée sans authentification.
+      imagePullSecrets:
+        - name: ghcr-tirage
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001                         # pour écrire dans le volume /donnees
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sfb-demo
+          # Valeur de départ : le pipeline fixe l'étiquette exacte (commit) avec `kubectl set image`.
+          image: ghcr.io/securefinbridge/passerelle-demo:latest
+          # L'étiquette déployée est un commit, donc immuable : un redémarrage du conteneur
+          # (sonde de vivacité) ne dépend pas de la disponibilité du registre.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          # /sante répond 200 seulement si la passerelle ET le bouchon répondent.
+          # Démarrage mesuré : une quinzaine de secondes sur un cœur (génération des clés comprise).
+          startupProbe:
+            httpGet:
+              path: /sante
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36               # jusqu'à 3 minutes pour démarrer
+          # Si l'un des deux processus meurt, /sante passe à 503 et le conteneur est redémarré.
+          livenessProbe:
+            httpGet:
+              path: /sante
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /sante
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          volumeMounts:
+            - name: donnees
+              mountPath: /donnees
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Clés de démonstration et journal d'audit : jetables, bornés en taille.
+        - name: donnees
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sfb-demo
+  namespace: securefinbridge
+  labels:
+    app: sfb-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: sfb-demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

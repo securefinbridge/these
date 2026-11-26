@@ -1,0 +1,58 @@
+# Exposition publique : https://securefinbridge.emmanuelsehou.com
+# Même recette que Les Meilleurs : Traefik (annotation ingress.class, et PAS ingressClassName: nginx),
+# certificat Let's Encrypt par cert-manager, redirection http -> https.
+# Seule la console HTTP est exposée ; les ports 7000 et 7443 de la passerelle ne le sont pas.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: securefinbridge
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# Limitation de débit par adresse source : 2 requêtes par seconde en moyenne, rafales de 60.
+# C'est le double des 60 par minute envisagés au départ : la page relit l'état et le journal
+# toute seule (8 requêtes par minute et par onglet), et un jury assis dans la même salle sort
+# sur Internet par une seule adresse. À 60 par minute, six onglets ouverts suffiraient à
+# faire refuser les clics.
+# Attention : la limite n'est « par adresse » que si Traefik voit l'adresse réelle du client.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: limite-debit
+  namespace: securefinbridge
+spec:
+  rateLimit:
+    average: 120
+    period: 1m
+    burst: 60
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sfb-demo
+  namespace: securefinbridge
+  labels:
+    app: sfb-demo
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: securefinbridge-redirect-https@kubernetescrd,securefinbridge-limite-debit@kubernetescrd
+spec:
+  tls:
+    - hosts:
+        - securefinbridge.emmanuelsehou.com
+      secretName: sfb-demo-tls
+  rules:
+    - host: securefinbridge.emmanuelsehou.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sfb-demo
+                port:
+                  number: 80

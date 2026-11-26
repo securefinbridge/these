@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Projet Maven / Spring Boot du démonstrateur SecureFinBridge.
+
+  Le cœur du banc (src/sfb/*.java : protocole SFB-AKA, passerelle, politique, journal)
+  reste en Java 21 pur, sans aucune dépendance : il se compile toujours avec
+      javac -d build src/sfb/*.java
+  et le Dockerfile, campagne.sh et verifier.sh ne changent pas.
+
+  Spring Boot ne sert qu'à l'application de démonstration (src/sfb/demo) : elle démarre
+  le bouchon core banking et la passerelle, puis expose une API HTTP devant eux.
+
+  Lancer :  mvn spring-boot:run        (depuis ce dossier, code/banc)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.4</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>bf.ujkz.ibam.securefinbridge</groupId>
+  <artifactId>passerelle-demo</artifactId>
+  <version>1.0.0</version>
+  <name>SecureFinBridge : démonstrateur de la passerelle SFB-AKA</name>
+  <description>Prototype de démonstration. Banque simulée par un bouchon ISO 20022.</description>
+
+  <properties>
+    <java.version>21</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Les sources restent où elles sont : aucun fichier du banc n'est déplacé. -->
+    <sourceDirectory>src</sourceDirectory>
+    <resources>
+      <resource>
+        <directory>ressources</directory>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>sfb.demo.Application</mainClass>
+        </configuration>
+        <!-- Numéro de version lu par /api/v1/etat (META-INF/build-info.properties). -->
+        <executions>
+          <execution>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
