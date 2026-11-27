@@ -8,7 +8,7 @@ const DEPOT = 'https://github.com/securefinbridge/these';
 module.exports = {
   title: 'Cauris',
   tagline: 'La documentation développeur de SecureFinBridge',
-  favicon: 'img/favicon.svg',
+  favicon: 'img/favicon.png',
   url: 'https://docs.securefinbridge.emmanuelsehou.com',
   baseUrl: '/',
   organizationName: 'securefinbridge',
@@ -31,16 +31,9 @@ module.exports = {
 
   themeConfig: {
     colorMode: { defaultMode: 'light', respectPrefersColorScheme: false },
-    announcementBar: {
-      id: 'prototype',
-      content: 'Prototype de démonstration issu d\'un travail de recherche. Banque simulée, clés de démonstration. Non destiné à la production.',
-      backgroundColor: '#FBF0D9',
-      textColor: '#7A5410',
-      isCloseable: false,
-    },
     navbar: {
       title: 'Cauris',
-      logo: { alt: 'Cauris', src: 'img/logo.svg' },
+      logo: { alt: 'Cauris', src: 'img/logo.png' },
       items: [
         { to: '/docs/demarrage-rapide', label: 'Démarrage rapide', position: 'left' },
         { to: '/docs/protocole/vue-ensemble', label: 'Protocole', position: 'left' },
@@ -68,7 +61,7 @@ module.exports = {
           { label: 'Code et modèles formels', href: DEPOT },
         ]},
       ],
-      copyright: 'SecureFinBridge. Travail de recherche, IBAM / Université Joseph KI-ZERBO. Code et modèles sous licence MIT.',
+      copyright: 'SecureFinBridge. Travail de recherche, IBAM / Université Joseph KI-ZERBO. Prototype de démonstration : banque simulée, clés de démonstration, non destiné à la production. Code et modèles sous licence MIT.',
     },
     prism: { theme: prism.github, darkTheme: prism.dracula, additionalLanguages: ['java', 'bash', 'json', 'properties'] },
     docs: { sidebar: { hideable: true } },

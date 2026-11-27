@@ -59,7 +59,6 @@ export default function Accueil() {
     <Layout title="Documentation développeur" description="La documentation développeur de SecureFinBridge : protocole SFB-AKA, passerelle Mobile Money / Core Banking, guide d'intégration.">
       <header className={s.hero}>
         <div className={s.contenu}>
-          <p className={s.etiquette}><i />Documentation développeur de SecureFinBridge</p>
           <h1 className={s.titre}>Relier Mobile Money et banque, <span>avec une sécurité prouvée.</span></h1>
           <p className={s.chapo}>
             Une passerelle de médiation entre une plateforme de Mobile Money et un système bancaire.
