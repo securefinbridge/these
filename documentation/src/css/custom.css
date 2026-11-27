@@ -1,52 +1,83 @@
-/* Cauris : fond blanc, texte anthracite, vert profond et or. Aucun dégradé. */
+/* Mêmes couleurs que la console et le support de soutenance : encre, vert, or. Aplats seulement, aucun dégradé, aucun cadre. */
 :root {
-  --ifm-color-primary: #0b5d4b;
-  --ifm-color-primary-dark: #0a5444;
-  --ifm-color-primary-darker: #094f40;
-  --ifm-color-primary-darkest: #084135;
-  --ifm-color-primary-light: #0c6652;
-  --ifm-color-primary-lighter: #0d6b56;
-  --ifm-color-primary-lightest: #0f7961;
-  --cauris-or: #b8892b;
-  --cauris-or-clair: #f6f1e4;
-  --cauris-encre: #1c2422;
-  --cauris-gris: #5b6664;
-  --cauris-trait: #e3e7e5;
-  --cauris-fond-doux: #f7f9f8;
+  --ifm-color-primary: #0e7c6b;
+  --ifm-color-primary-dark: #0d7060;
+  --ifm-color-primary-darker: #0c695b;
+  --ifm-color-primary-darkest: #0a574b;
+  --ifm-color-primary-light: #0f8876;
+  --ifm-color-primary-lighter: #108f7b;
+  --ifm-color-primary-lightest: #13a58f;
+  --sfb-encre: #12262b;
+  --sfb-doux: #5b6b70;
+  --sfb-nuit: #0b3b3c;
+  --sfb-surface: #eef4f2;
+  --sfb-surface-2: #e3ece9;
+  --sfb-blanc: #ffffff;
+  --sfb-menthe: #9fd3c7;
+  --sfb-or: #e3a32b;
+  --sfb-or-texte: #7a5410;
+  --sfb-or-pale: #fbf0d9;
   --ifm-background-color: #ffffff;
-  --ifm-font-color-base: var(--cauris-encre);
-  --ifm-heading-color: var(--cauris-encre);
-  --ifm-font-family-base: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --ifm-heading-font-weight: 650;
-  --ifm-code-font-size: 92%;
+  --ifm-font-color-base: var(--sfb-encre);
+  --ifm-heading-color: var(--sfb-encre);
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ifm-font-family-monospace: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ifm-heading-font-weight: 700;
+  --ifm-code-font-size: 90%;
   --ifm-navbar-shadow: none;
-  --ifm-global-radius: 8px;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.82);
+  --ifm-navbar-height: 3.75rem;
+  --ifm-global-radius: 14px;
+  --ifm-code-border-radius: 8px;
+  --ifm-pre-border-radius: 18px;
   --ifm-link-decoration: none;
-  --docusaurus-highlighted-code-line-bg: rgba(11, 93, 75, 0.08);
+  --ifm-menu-color-background-active: var(--sfb-surface);
+  --ifm-menu-color-background-hover: var(--sfb-surface);
+  --ifm-table-border-width: 0;
+  --ifm-table-stripe-background: var(--sfb-surface);
+  --ifm-toc-border-color: transparent;
+  --ifm-footer-background-color: var(--sfb-surface);
+  --ifm-code-background: var(--sfb-surface);
+  --docusaurus-highlighted-code-line-bg: rgba(14, 124, 107, 0.1);
 }
 [data-theme='dark'] {
-  --ifm-color-primary: #4fc3a1;
-  --ifm-color-primary-dark: #3cb894;
-  --ifm-color-primary-darker: #38ae8c;
-  --ifm-color-primary-darkest: #2e8f73;
-  --ifm-color-primary-light: #66cbad;
-  --ifm-color-primary-lighter: #72cfb3;
-  --ifm-color-primary-lightest: #95dcc6;
-  --cauris-or: #d9ad55;
-  --cauris-or-clair: #2a2518;
-  --cauris-encre: #e8eeec;
-  --cauris-gris: #a3adab;
-  --cauris-trait: #2c3432;
-  --cauris-fond-doux: #171c1b;
-  --ifm-background-color: #111514;
+  --ifm-color-primary: #5fcab2;
+  --ifm-color-primary-dark: #4bc3a9;
+  --ifm-color-primary-darker: #41c0a4;
+  --ifm-color-primary-darkest: #349f88;
+  --ifm-color-primary-light: #73d1bb;
+  --ifm-color-primary-lighter: #7dd4c0;
+  --ifm-color-primary-lightest: #9cdfcf;
+  --sfb-encre: #eaf2f0;
+  --sfb-doux: #a3b3b0;
+  --sfb-nuit: #0b3b3c;
+  --sfb-surface: #18292c;
+  --sfb-surface-2: #213538;
+  --sfb-blanc: #223a3e;
+  --sfb-or-texte: #f0c877;
+  --sfb-or-pale: #3a2f17;
+  --ifm-background-color: #0f1d20;
+  --ifm-navbar-background-color: rgba(15, 29, 32, 0.82);
 }
-.navbar { border-bottom: 1px solid var(--cauris-trait); }
-.navbar__title { font-weight: 700; letter-spacing: 0.01em; }
-.footer { border-top: 1px solid var(--cauris-trait); background: var(--cauris-fond-doux); }
-.footer__copyright { color: var(--cauris-gris); font-size: 0.85rem; }
-.markdown h2 { margin-top: 2.4rem; }
-.markdown table { display: table; width: 100%; }
-.markdown table th { background: var(--cauris-fond-doux); text-align: left; }
-.theme-doc-sidebar-container { border-right: 1px solid var(--cauris-trait) !important; }
+html { -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+.navbar { -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); }
+.navbar__title { font-weight: 650; letter-spacing: -0.01em; }
+.navbar__link { font-weight: 500; font-size: 0.94rem; color: var(--sfb-doux); }
+.navbar__link:hover, .navbar__link--active { color: var(--sfb-encre); }
+.navbar__logo { height: 1.9rem; }
+.footer { padding-top: 3rem; }
+.footer__title { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sfb-doux); }
+.footer__copyright { color: var(--sfb-doux); font-size: 0.85rem; }
+.markdown h2 { margin-top: 2.6rem; }
+.markdown table { display: table; width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; border-radius: 18px; background: var(--sfb-surface); }
+.markdown table th { background: var(--sfb-surface-2); text-align: left; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sfb-doux); }
+.markdown table tr { background: transparent; border: 0; }
+.markdown table th, .markdown table td { border: 0; padding: 0.7rem 1rem; }
+.theme-doc-sidebar-container { border-right: 0 !important; }
+.menu__link { border-radius: 12px; font-size: 0.94rem; }
 .menu__link--active:not(.menu__link--sublist) { font-weight: 600; }
-div[class*='announcementBar'] { border-bottom: 1px solid #e6dcc3; font-size: 0.88rem; }
+.theme-admonition { border: 0; border-radius: 18px; }
+.pagination-nav__link { border: 0; background: var(--sfb-surface); border-radius: 18px; }
+.pagination-nav__link:hover { background: var(--sfb-surface-2); }
+div[class*='announcementBar'] { font-size: 0.86rem; font-weight: 550; }

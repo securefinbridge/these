@@ -4,204 +4,332 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
 <meta name="robots" content="noindex">
-<title>SecureFinBridge · démonstrateur de la passerelle SFB-AKA</title>
-<link rel="icon" href="data:,">
+<title>SecureFinBridge · console de démonstration de la passerelle SFB-AKA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230E7C6B'/%3E%3Cpath d='M14 44V30a18 18 0 0 1 36 0v14' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M10 46h44' stroke='%23E3A32B' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='31' r='4.5' fill='%23E3A32B'/%3E%3C/svg%3E">
 <style>
+/* Mêmes couleurs que le support de soutenance : encre, vert, or, rouge. Aplats seulement, aucun dégradé, aucun cadre. */
 :root {
-  --fond: #ffffff; --texte: #2b2f33; --doux: #5b636b; --trait: #e2e5e8; --gris-pale: #f6f7f8;
-  --vert: #0b5d4b; --vert-fonce: #084a3c; --vert-pale: #e9f2ef;
-  --or: #b8892b; --or-pale: #f8f1e2;
-  --alerte: #9b2c2c; --alerte-pale: #f9ecec;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --fond: #ffffff; --surface: #eef4f2; --surface-2: #e3ece9; --blanc: #ffffff;
+  --encre: #12262b; --doux: #5b6b70; --nuit: #0b3b3c;
+  --vert: #0e7c6b; --vert-fonce: #0a6456; --vert-pale: #d9ece7; --menthe: #9fd3c7;
+  --or: #e3a32b; --or-texte: #7a5410; --or-pale: #fbf0d9;
+  --rouge: #c4452d; --rouge-pale: #f9e4df;
+  --r-xl: 28px; --r-l: 22px; --r-m: 16px; --r-s: 12px;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --glisse: cubic-bezier(.22, 1, .36, 1);
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--fond); color: var(--texte);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-a { color: var(--vert); text-underline-offset: 3px; }
-a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--or); outline-offset: 2px; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--fond); color: var(--encre); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, p, dl, dd { margin: 0; }
+a { color: var(--vert); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--or); outline-offset: 3px; border-radius: 10px; }
+.mono { font-family: var(--mono); font-size: .86em; }
+.nb { font-variant-numeric: tabular-nums; }
 
-.bandeau {
-  position: sticky; top: 0; z-index: 10; padding: 9px 16px; text-align: center; font-size: .92rem;
-  background: var(--or-pale); border-bottom: 2px solid var(--or);
-}
-.bandeau strong { color: #7a5a17; }
+/* ---------- barre ---------- */
+.barre { position: sticky; top: 0; z-index: 20; background: rgba(255, 255, 255, .82); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); }
+.barre-in { max-width: 1120px; margin: 0 auto; padding: 12px 20px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+.marque { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; color: var(--encre); }
+.marque:hover { text-decoration: none; }
+.marque svg { width: 30px; height: 30px; flex: none; }
+.cote { display: flex; align-items: center; justify-content: flex-end; gap: 18px; font-size: .92rem; }
+.cote a { color: var(--doux); }
+.cote a:hover { color: var(--encre); text-decoration: none; }
+.voyants { display: flex; gap: 12px; }
+.voyant { display: inline-flex; align-items: center; gap: 6px; color: var(--doux); font-size: .84rem; white-space: nowrap; }
+.voyant i { width: 8px; height: 8px; border-radius: 50%; background: #b9c4c2; }
+.voyant.ok i { background: var(--vert); }
+.voyant.ko i { background: var(--rouge); }
 
-.page { max-width: 1080px; margin: 0 auto; padding: 0 16px 48px; }
-.entete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding: 30px 0 8px; }
-.entete h1 { margin: 0; font-size: 1.9rem; line-height: 1.2; letter-spacing: -.01em; color: var(--vert); }
-.entete p { margin: 4px 0 0; color: var(--doux); }
-.liens { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .95rem; }
-.liens span { color: var(--doux); }
+/* commande segmentée */
+.segments { position: relative; display: inline-flex; padding: 4px; background: var(--surface); border-radius: 999px; }
+.segments button { position: relative; z-index: 1; appearance: none; border: 0; background: none; cursor: pointer; font: inherit; font-size: .92rem; font-weight: 550; color: var(--doux); padding: 7px 16px; border-radius: 999px; transition: color .2s; white-space: nowrap; }
+.segments button[aria-selected="true"] { color: var(--encre); }
+.segments .curseur { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; width: 0; background: var(--blanc); border-radius: 999px; box-shadow: 0 1px 3px rgba(18, 38, 43, .12); transition: transform .38s var(--glisse), width .38s var(--glisse); }
 
-.zone { border: 1px solid var(--trait); border-radius: 10px; padding: 22px 24px; margin: 20px 0; }
-.zone h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 1.2rem; }
-.num {
-  flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--vert); color: #fff;
-  font-size: .9rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
-}
-.zone > p.note, .note { margin: 0 0 14px; color: var(--doux); font-size: .95rem; max-width: 78ch; }
+/* ---------- page ---------- */
+.page { max-width: 1120px; margin: 0 auto; padding: 0 20px 72px; }
+.accueil { padding: 44px 0 30px; max-width: 760px; }
+.etiquette { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: var(--or-pale); color: var(--or-texte); font-size: .84rem; font-weight: 600; }
+.etiquette i { width: 7px; height: 7px; border-radius: 50%; background: var(--or); }
+.accueil h1 { margin-top: 18px; font-size: clamp(2.1rem, 5.2vw, 3.5rem); line-height: 1.06; letter-spacing: -.035em; font-weight: 700; }
+.accueil h1 span { color: var(--vert); }
+.accueil p { margin-top: 16px; font-size: 1.14rem; color: var(--doux); max-width: 62ch; }
 
-.etat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 22px; margin: 14px 0 0; }
-.etat div { min-width: 0; }
-.etat dt { font-size: .76rem; letter-spacing: .05em; text-transform: uppercase; color: var(--doux); }
-.etat dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.volet { display: none; }
+.volet.actif { display: block; animation: entree .5s var(--glisse) both; }
+@keyframes entree { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
-.pastille { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: .86rem; font-weight: 600; white-space: nowrap; }
-.pastille.ok { background: var(--vert-pale); color: var(--vert); }
-.pastille.ko { background: var(--alerte-pale); color: var(--alerte); }
-.pastille.or { background: var(--or-pale); color: #7a5a17; }
-.pastille.neutre { background: var(--gris-pale); color: var(--doux); }
+.tete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 28px; margin-bottom: 18px; }
+.tete h2 { font-size: 1.7rem; letter-spacing: -.025em; line-height: 1.15; }
+.tete p { margin-top: 6px; color: var(--doux); max-width: 68ch; }
 
-.btn {
-  appearance: none; border: 1px solid var(--vert); background: var(--vert); color: #fff; cursor: pointer;
-  font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px;
-}
+.carte { background: var(--surface); border-radius: var(--r-xl); padding: 28px; }
+.carte + .carte { margin-top: 16px; }
+.grille2 > .carte, .grille3 > .carte { margin-top: 0; }
+.carte.nuit { background: var(--nuit); color: #fff; }
+.grille2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grille3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+
+.btn { appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 600; padding: 13px 24px; border-radius: 999px; background: var(--vert); color: #fff; transition: transform .15s var(--glisse), background-color .15s; }
 .btn:hover { background: var(--vert-fonce); }
-.btn.second { background: #fff; color: var(--vert); }
-.btn.second:hover { background: var(--vert-pale); }
-.btn.petit { padding: 5px 11px; font-size: .88rem; font-weight: 500; }
+.btn:active { transform: scale(.97); }
+.btn.clair { background: var(--blanc); color: var(--encre); }
+.btn.clair:hover { background: var(--surface-2); }
+.btn.puce { padding: 8px 15px; font-size: .88rem; font-weight: 550; background: var(--blanc); color: var(--encre); }
+.btn.puce:hover { background: var(--surface-2); }
+.btn.rouge { background: var(--rouge); }
+.btn.rouge:hover { background: #a93a25; }
 .btn:disabled { opacity: .55; cursor: progress; }
+.btn .rond { display: none; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff; animation: tour .7s linear infinite; }
+.btn.clair .rond, .btn.puce .rond { border-color: rgba(18, 38, 43, .2); border-top-color: var(--encre); }
+.btn:disabled .rond { display: inline-block; }
+@keyframes tour { to { transform: rotate(360deg); } }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
-.resultat { margin-top: 14px; padding: 14px 16px; border-radius: 8px; background: var(--gris-pale); border-left: 4px solid var(--trait); }
-.resultat.accepte { background: var(--vert-pale); border-left-color: var(--vert); }
-.resultat.rejete { background: var(--or-pale); border-left-color: var(--or); }
-.resultat.erreur { background: var(--alerte-pale); border-left-color: var(--alerte); }
-.resultat h3 { margin: 0 0 4px; font-size: 1.05rem; }
-.resultat p { margin: 4px 0; }
-.details { margin: 8px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; font-size: .9rem; }
-.details dt { color: var(--doux); }
-.details dd { margin: 0; overflow-wrap: anywhere; }
-.mono { font-family: var(--mono); font-size: .86em; }
+.pastille { display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 999px; font-size: .82rem; font-weight: 600; white-space: nowrap; }
+.pastille.ok { background: var(--vert-pale); color: var(--vert-fonce); }
+.pastille.ko { background: var(--rouge-pale); color: var(--rouge); }
+.pastille.or { background: var(--or-pale); color: var(--or-texte); }
+.pastille.neutre { background: var(--surface-2); color: var(--doux); }
 
-.message { border: 1px solid var(--trait); border-left: 4px solid var(--vert); border-radius: 8px; padding: 12px 14px; margin: 10px 0; background: #fff; }
-.message.retour { border-left-color: var(--or); }
-.message header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.message header b { font-size: 1.05rem; }
-.message header .sens { color: var(--doux); font-size: .92rem; }
-.message header .taille { margin-left: auto; font-family: var(--mono); font-weight: 700; color: var(--vert); }
-.champs { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .86rem; table-layout: fixed; }
-.champs td { padding: 4px 8px 4px 0; vertical-align: top; border-top: 1px solid var(--trait); }
-.champs td:first-child { width: 34%; }
-.champs td.lg { width: 52px; white-space: nowrap; color: var(--doux); text-align: right; }
-.champs td.hex { font-family: var(--mono); font-size: .78rem; color: var(--doux); word-break: break-all; }
-.bilan { margin: 12px 0 0; font-weight: 600; }
-.bilan small { display: block; font-weight: 400; color: var(--doux); }
+.vide { color: var(--doux); padding: 36px 8px; text-align: center; }
 
-.formulaire { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 18px; margin-bottom: 14px; }
-.formulaire label { display: block; font-size: .88rem; color: var(--doux); }
-.formulaire input {
-  display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: var(--texte);
-  background: #fff; border: 1px solid #c9ced3; border-radius: 8px;
-}
-.scenarios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 720px) { .scenarios { grid-template-columns: minmax(0, 1fr); } }
-.scenario { border: 1px solid var(--trait); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
-.scenario h3 { margin: 0; font-size: 1rem; }
-.scenario p { margin: 0; font-size: .92rem; color: var(--doux); }
-.scenario .attendu { color: var(--texte); }
-.scenario .btn { align-self: flex-start; }
-.scenario .resultat { margin-top: 2px; font-size: .92rem; }
+/* ---------- session ---------- */
+.voies { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--doux); margin-bottom: 14px; }
+.msg { background: var(--blanc); border-radius: var(--r-l); padding: 18px 22px; margin-bottom: 10px; opacity: 0; animation: entree .55s var(--glisse) forwards; }
+.msg-ligne { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; }
+.msg-nom { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--vert); color: #fff; }
+.msg.retour .msg-nom { background: var(--or); color: var(--encre); }
+.msg-sens { font-weight: 600; }
+.piste { position: relative; height: 4px; margin-top: 10px; border-radius: 4px; background: var(--surface); overflow: hidden; }
+.piste i { position: absolute; inset: 0; border-radius: 4px; background: var(--vert); transform-origin: left; transform: scaleX(0); animation: trait .9s var(--glisse) forwards; }
+.msg.retour .piste i { background: var(--or); transform-origin: right; }
+@keyframes trait { to { transform: scaleX(1); } }
+.msg-taille { text-align: right; font-size: 1.7rem; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.msg-taille small { display: block; margin-top: 4px; font-size: .78rem; font-weight: 500; letter-spacing: 0; color: var(--doux); }
+details.champs { margin-top: 12px; }
+details.champs summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; font-weight: 550; color: var(--vert); border-radius: 8px; }
+details.champs summary::-webkit-details-marker { display: none; }
+details.champs summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .2s; }
+details.champs[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
+.champ { display: grid; grid-template-columns: minmax(0, 1.1fr) 54px minmax(0, 2fr); gap: 4px 14px; padding: 8px 0; font-size: .86rem; }
+.champ + .champ { box-shadow: 0 -1px 0 var(--surface); }
+.champ .lg { color: var(--doux); text-align: right; white-space: nowrap; }
+.champ .hex { font-family: var(--mono); font-size: .76rem; color: var(--doux); word-break: break-all; }
 
-.chainage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: .92rem; }
-.defile { overflow-x: auto; }
-table.journal { width: 100%; border-collapse: collapse; font-size: .85rem; }
-table.journal th { text-align: left; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; color: var(--doux); font-weight: 600; padding: 6px 10px 6px 0; white-space: nowrap; }
-table.journal td { padding: 6px 10px 6px 0; border-top: 1px solid var(--trait); white-space: nowrap; vertical-align: top; }
+.chiffre { background: var(--blanc); border-radius: var(--r-l); padding: 20px 22px; }
+.chiffre b { display: block; font-size: 2.1rem; font-weight: 700; letter-spacing: -.035em; line-height: 1; }
+.chiffre span { display: block; margin-top: 8px; color: var(--doux); font-size: .9rem; }
+.chiffre.fort { background: var(--nuit); color: #fff; }
+.chiffre.fort span { color: var(--menthe); }
+.sous { margin-top: 14px; color: var(--doux); font-size: .9rem; }
+
+/* ---------- ordre ---------- */
+.formulaire { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.formulaire label { display: block; background: var(--blanc); border-radius: var(--r-m); padding: 12px 16px 10px; font-size: .78rem; font-weight: 600; letter-spacing: .02em; color: var(--doux); transition: box-shadow .15s; }
+.formulaire label:focus-within { box-shadow: 0 0 0 2px var(--vert); }
+.formulaire input { display: block; width: 100%; margin-top: 2px; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 1.12rem; font-weight: 600; color: var(--encre); font-variant-numeric: tabular-nums; }
+.verdict { margin-top: 16px; border-radius: var(--r-xl); padding: 28px; background: var(--nuit); color: #fff; animation: entree .5s var(--glisse) both; }
+.verdict.rejete { background: var(--or-pale); color: var(--encre); }
+.verdict.erreur { background: var(--rouge-pale); color: var(--encre); }
+.verdict h3 { display: flex; align-items: center; gap: 12px; font-size: 1.5rem; letter-spacing: -.02em; }
+.verdict h3 .signe { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--menthe); color: var(--nuit); }
+.verdict.rejete h3 .signe { background: var(--or); color: var(--encre); }
+.verdict.erreur h3 .signe { background: var(--rouge); color: #fff; }
+.verdict h3 .signe svg { width: 18px; height: 18px; }
+.verdict > p { margin-top: 10px; max-width: 74ch; opacity: .88; }
+.details { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 24px; }
+.details dt { font-size: .76rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; opacity: .62; }
+.details dd { margin-top: 2px; overflow-wrap: anywhere; }
+
+/* ---------- attaques ---------- */
+.scenario { display: flex; flex-direction: column; gap: 10px; }
+.scenario .haut { display: flex; align-items: center; gap: 14px; }
+.scenario .icone { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--rouge); color: #fff; }
+.scenario .icone svg { width: 22px; height: 22px; }
+.scenario h3 { font-size: 1.14rem; letter-spacing: -.01em; }
+.scenario .ref { color: var(--doux); font-size: .8rem; }
+.scenario p { color: var(--doux); font-size: .95rem; }
+.scenario .attendu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .88rem; color: var(--doux); }
+.scenario .btn { align-self: flex-start; margin-top: 4px; }
+.issue { background: var(--blanc); border-radius: var(--r-m); padding: 16px 18px; font-size: .92rem; animation: entree .45s var(--glisse) both; }
+.issue .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 6px; }
+.issue p { color: var(--doux); margin-top: 6px; }
+
+/* ---------- journal ---------- */
+.chainage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: .9rem; color: var(--doux); }
+.defile { overflow-x: auto; margin: 0 -8px; }
+table.journal { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: .86rem; }
+table.journal th { text-align: left; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--doux); font-weight: 600; padding: 0 14px 4px; white-space: nowrap; }
+table.journal td { padding: 11px 14px; background: var(--blanc); white-space: nowrap; vertical-align: middle; }
+table.journal td:first-child { border-radius: var(--r-s) 0 0 var(--r-s); font-weight: 700; }
+table.journal td:last-child { border-radius: 0 var(--r-s) var(--r-s) 0; }
 table.journal tr.recente td { background: var(--vert-pale); }
-table.journal td.vide { color: var(--doux); white-space: normal; padding: 14px 0; }
+table.journal td.rien { color: var(--doux); white-space: normal; text-align: center; padding: 30px 14px; border-radius: var(--r-s); font-weight: 400; }
 
-.encadre { border: 1px solid var(--or); border-left: 4px solid var(--or); border-radius: 10px; padding: 18px 22px; margin: 20px 0; background: #fff; }
-.encadre h2 { margin: 0 0 6px; font-size: 1.05rem; }
-.encadre p { margin: 6px 0; max-width: 82ch; }
-.pied { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--trait); color: var(--doux); font-size: .9rem; }
-@media (max-width: 560px) {
-  .zone { padding: 18px 16px; } .entete h1 { font-size: 1.55rem; }
-  .champs, .champs tbody, .champs tr, .champs td { display: block; }
-  .champs td, .champs td:first-child, .champs td.lg { width: auto; text-align: left; border-top: 0; padding: 0; }
-  .champs tr { border-top: 1px solid var(--trait); padding: 5px 0; }
+/* ---------- service ---------- */
+.etat { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.etat div { background: var(--blanc); border-radius: var(--r-m); padding: 14px 18px; min-width: 0; }
+.etat dt { font-size: .74rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--doux); }
+.etat dd { margin-top: 4px; font-weight: 600; overflow-wrap: anywhere; }
+.nuit h3 { font-size: 1.3rem; letter-spacing: -.02em; }
+.nuit p { margin-top: 10px; color: #d6e6e2; max-width: 78ch; }
+
+.pied { margin-top: 48px; color: var(--doux); font-size: .88rem; max-width: 86ch; }
+.pied a { font-weight: 550; }
+
+@media (max-width: 900px) {
+  .barre-in { grid-template-columns: 1fr auto; row-gap: 10px; }
+  .segments-zone { grid-column: 1 / -1; grid-row: 2; min-width: 0; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .barre-in > * { min-width: 0; }
+  .segments-zone::-webkit-scrollbar { display: none; }
+  .voyants { display: none; }
+  .accueil { padding: 34px 0 26px; }
+  .grille2, .grille3, .formulaire { grid-template-columns: minmax(0, 1fr); }
+  .carte, .verdict { padding: 20px; border-radius: var(--r-l); }
+  .msg { padding: 16px; }
+  .msg-ligne { gap: 12px; }
+  .msg-taille { font-size: 1.35rem; }
+  .champ { grid-template-columns: 1fr auto; }
+  .champ .hex { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; }
+  html { scroll-behavior: auto; }
 }
 </style>
 </head>
 <body>
-<div class="bandeau" role="note"><strong>Prototype de démonstration.</strong> Banque simulée par un bouchon ISO 20022. Clés de démonstration régénérées à chaque démarrage. Non destiné à la production.</div>
 
-<div class="page">
-  <div class="entete">
-    <div>
-      <h1>SecureFinBridge</h1>
-      <p>Passerelle de médiation Mobile Money – core banking · protocole SFB-AKA · console de démonstration</p>
+<header class="barre">
+  <div class="barre-in">
+    <a class="marque" href="#session" aria-label="SecureFinBridge, console de démonstration">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0E7C6B"/><path d="M14 44V30a18 18 0 0 1 36 0v14" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M10 46h44" stroke="#E3A32B" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="31" r="4.5" fill="#E3A32B"/></svg>
+      <span>SecureFinBridge</span>
+    </a>
+    <div class="segments-zone">
+      <div class="segments" role="tablist" aria-label="Étapes de la démonstration">
+        <span class="curseur" aria-hidden="true"></span>
+        <button role="tab" id="o-session" aria-controls="v-session" aria-selected="true" type="button">Session</button>
+        <button role="tab" id="o-ordre" aria-controls="v-ordre" aria-selected="false" tabindex="-1" type="button">Ordre</button>
+        <button role="tab" id="o-attaques" aria-controls="v-attaques" aria-selected="false" tabindex="-1" type="button">Attaques</button>
+        <button role="tab" id="o-journal" aria-controls="v-journal" aria-selected="false" tabindex="-1" type="button">Journal</button>
+        <button role="tab" id="o-service" aria-controls="v-service" aria-selected="false" tabindex="-1" type="button">Service</button>
+      </div>
     </div>
-    <nav class="liens" aria-label="Liens">
-      <a href="https://github.com/securefinbridge/these" rel="noopener noreferrer">Dépôt GitHub</a>
-      <span>Documentation : à venir</span>
-    </nav>
+    <div class="cote">
+      <div class="voyants" id="voyants" aria-live="polite">
+        <span class="voyant"><i></i>Passerelle</span><span class="voyant"><i></i>Banque simulée</span>
+      </div>
+      <a href="https://docs.securefinbridge.emmanuelsehou.com" rel="noopener noreferrer">Documentation</a>
+      <a href="https://github.com/securefinbridge/these" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="accueil">
+    <span class="etiquette" role="note"><i></i>Prototype de démonstration, banque simulée</span>
+    <h1>La passerelle, <span>à l'épreuve.</span></h1>
+    <p>Ouvrez une vraie session SFB-AKA, envoyez un ordre de virement, rejouez les attaques du banc d'essai, puis lisez le journal qui en garde la trace.</p>
   </div>
 
-  <section class="zone" aria-labelledby="t-etat">
-    <h2 id="t-etat"><span class="num">1</span>État du service</h2>
-    <p class="note">La passerelle et le bouchon core banking tournent dans deux processus distincts, comme sur le banc d'essai. Cet état est relu toutes les trente secondes.</p>
-    <dl class="etat" id="etat" aria-live="polite"><div><dt>État</dt><dd>Lecture en cours…</dd></div></dl>
+  <!-- 1. session -->
+  <section class="volet actif" id="v-session" role="tabpanel" aria-labelledby="o-session" tabindex="0">
+    <div class="tete">
+      <div>
+        <h2>Ouvrir une session</h2>
+        <p>Trois messages entre la plateforme et la passerelle. Les tailles sont relevées sur le fil à chaque essai.</p>
+      </div>
+      <button class="btn" id="btn-session" type="button"><span class="rond"></span>Ouvrir une session SFB-AKA</button>
+    </div>
+    <div class="carte">
+      <div id="session" aria-live="polite"><p class="vide">Aucune session pour l'instant. La poignée de main s'affichera ici, message par message.</p></div>
+    </div>
   </section>
 
-  <section class="zone" aria-labelledby="t-session">
-    <h2 id="t-session"><span class="num">2</span>Ouvrir une session</h2>
-    <p class="note">La console ouvre une connexion TCP vers la passerelle, exécute la poignée de main SFB-AKA en trois messages, puis referme la connexion. Les tailles affichées sont relevées sur le fil à chaque clic.</p>
-    <div class="actions"><button class="btn" id="btn-session" type="button">Ouvrir une session SFB-AKA</button></div>
-    <div id="session" aria-live="polite"></div>
-  </section>
-
-  <section class="zone" aria-labelledby="t-ordre">
-    <h2 id="t-ordre"><span class="num">3</span>Envoyer un ordre</h2>
-    <p class="note">Chaque envoi ouvre une session neuve, scelle un ordre de virement pacs.008 et le transmet. La passerelle contrôle l'intégrité, la fraîcheur puis la politique, journalise sa décision et relaie l'ordre accepté au bouchon. <span id="bornes"></span></p>
-    <form id="form-ordre" novalidate>
+  <!-- 2. ordre -->
+  <section class="volet" id="v-ordre" role="tabpanel" aria-labelledby="o-ordre" tabindex="0" hidden>
+    <div class="tete">
+      <div>
+        <h2>Envoyer un ordre</h2>
+        <p>Un ordre de virement pacs.008, scellé dans une session neuve. La passerelle contrôle l'intégrité, la fraîcheur puis la politique, journalise sa décision et relaie l'ordre accepté à la banque simulée. <span id="bornes"></span></p>
+      </div>
+    </div>
+    <form class="carte" id="form-ordre" novalidate>
       <div class="formulaire">
         <label>Montant (FCFA)<input id="montant" name="montant" type="number" inputmode="numeric" min="1" step="1" value="25000" required></label>
         <label>Compte débiteur<input id="debiteur" name="compteDebiteur" type="text" maxlength="24" value="22670000001" autocomplete="off" spellcheck="false" required></label>
         <label>Compte créditeur<input id="crediteur" name="compteCrediteur" type="text" maxlength="24" value="BF0010001" autocomplete="off" spellcheck="false" required></label>
       </div>
       <div class="actions">
-        <button class="btn" id="btn-ordre" type="submit">Envoyer l'ordre</button>
-        <button class="btn second" id="btn-renvoi" type="button" hidden>Renvoyer le même ordre (même référence)</button>
-        <button class="btn second petit" id="btn-valide" type="button">Montant valide</button>
-        <button class="btn second petit" id="btn-plafond" type="button">Montant au-dessus du plafond</button>
+        <button class="btn" id="btn-ordre" type="submit"><span class="rond"></span>Envoyer l'ordre</button>
+        <button class="btn clair" id="btn-renvoi" type="button" hidden><span class="rond"></span>Renvoyer le même ordre</button>
+        <button class="btn puce" id="btn-valide" type="button">Montant valide</button>
+        <button class="btn puce" id="btn-plafond" type="button">Au-dessus du plafond</button>
       </div>
     </form>
     <div id="ordre" aria-live="polite"></div>
   </section>
 
-  <section class="zone" aria-labelledby="t-attaques">
-    <h2 id="t-attaques"><span class="num">4</span>Rejouer une attaque</h2>
-    <p class="note">Chaque bouton exécute une fois le scénario correspondant du banc d'attaque du mémoire, avec le même code. Un scénario est conforme lorsque le motif de rejet observé est exactement le motif attendu.</p>
-    <div class="scenarios" id="scenarios"></div>
+  <!-- 3. attaques -->
+  <section class="volet" id="v-attaques" role="tabpanel" aria-labelledby="o-attaques" tabindex="0" hidden>
+    <div class="tete">
+      <div>
+        <h2>Rejouer une attaque</h2>
+        <p>Chaque bouton exécute une fois un scénario du banc d'attaque du mémoire, avec le même code. Un scénario est conforme lorsque le motif de rejet observé est exactement le motif attendu.</p>
+      </div>
+    </div>
+    <div class="grille2" id="scenarios"><p class="vide">Lecture des scénarios…</p></div>
   </section>
 
-  <section class="zone" aria-labelledby="t-journal">
-    <h2 id="t-journal">Journal d'audit chaîné</h2>
-    <p class="note">Chaque décision de la passerelle est une entrée qui contient l'empreinte SHA-256 de l'entrée précédente. La console recalcule ce chaînage depuis l'entrée de genèse à chaque lecture. Il révèle toute altération d'une entrée antérieure ; la dernière entrée ne serait vérifiable que par comparaison avec une tête publiée ailleurs.</p>
-    <div class="chainage" id="chainage" aria-live="polite"></div>
-    <div class="defile">
-      <table class="journal">
-        <thead><tr><th>N°</th><th>Heure (UTC)</th><th>Session</th><th>Compteur</th><th>Décision</th><th>Motif</th><th>Empreinte précédente</th><th>Empreinte</th></tr></thead>
-        <tbody id="journal"><tr><td class="vide" colspan="8">Lecture en cours…</td></tr></tbody>
-      </table>
+  <!-- 4. journal -->
+  <section class="volet" id="v-journal" role="tabpanel" aria-labelledby="o-journal" tabindex="0" hidden>
+    <div class="tete">
+      <div>
+        <h2>Journal d'audit chaîné</h2>
+        <p>Chaque décision contient l'empreinte SHA-256 de la précédente. La console recalcule ce chaînage depuis la genèse à chaque lecture : toute altération d'une entrée antérieure se voit. La dernière entrée ne serait vérifiable que par comparaison avec une tête publiée ailleurs.</p>
+      </div>
+      <div class="chainage" id="chainage" aria-live="polite"></div>
+    </div>
+    <div class="carte">
+      <div class="defile">
+        <table class="journal">
+          <thead><tr><th>N°</th><th>Heure (UTC)</th><th>Session</th><th>Compteur</th><th>Décision</th><th>Motif</th><th>Empreinte précédente</th><th>Empreinte</th></tr></thead>
+          <tbody id="journal"><tr><td class="rien" colspan="8">Lecture en cours…</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
-  <aside class="encadre" aria-labelledby="t-role">
-    <h2 id="t-role">Qui parle à la passerelle dans cette démonstration ?</h2>
-    <p>La passerelle ne parle pas HTTP : elle écoute en TCP et n'accepte que des partenaires inscrits à son registre. Cette console tient donc le rôle de la plateforme Mobile Money. Elle détient la clé « plateforme », ouvre les sessions SFB-AKA et scelle les ordres à votre place.</p>
-    <p>Un partenaire réel ne passerait pas par cette page : il s'intégrerait en TCP, avec sa propre clé ECDSA P-256 inscrite au registre de la passerelle. À cette étape, les ports TCP de la passerelle ne sont pas ouverts sur Internet.</p>
-  </aside>
+  <!-- 5. service -->
+  <section class="volet" id="v-service" role="tabpanel" aria-labelledby="o-service" tabindex="0" hidden>
+    <div class="tete">
+      <div>
+        <h2>État du service</h2>
+        <p>La passerelle et la banque simulée tournent dans deux processus distincts, comme sur le banc d'essai. Cet état est relu toutes les trente secondes.</p>
+      </div>
+    </div>
+    <div class="carte">
+      <dl class="etat" id="etat" aria-live="polite"><div><dt>État</dt><dd>Lecture en cours…</dd></div></dl>
+    </div>
+    <div class="carte nuit">
+      <h3>Qui parle à la passerelle dans cette démonstration ?</h3>
+      <p>La passerelle ne parle pas HTTP : elle écoute en TCP et n'accepte que des partenaires inscrits à son registre. Cette console tient donc le rôle de la plateforme Mobile Money. Elle détient la clé « plateforme », ouvre les sessions SFB-AKA et scelle les ordres à votre place.</p>
+      <p>Un partenaire réel ne passerait pas par cette page : il s'intégrerait en TCP, avec sa propre clé ECDSA P-256 inscrite au registre. À cette étape, les ports TCP de la passerelle ne sont pas ouverts sur Internet.</p>
+    </div>
+  </section>
 
   <footer class="pied">
-    SecureFinBridge, démonstrateur issu d'un mémoire de Master 2. Les durées affichées sont mesurées à l'instant entre la console et la passerelle, sur la même machine : elles ne disent rien d'un réseau mobile.
+    SecureFinBridge, démonstrateur issu d'un mémoire de Master 2 (IBAM, Université Joseph KI-ZERBO). Banque simulée par un bouchon ISO 20022, clés de démonstration régénérées à chaque démarrage, non destiné à la production. Les durées affichées sont mesurées entre la console et la passerelle, sur la même machine : elles ne disent rien d'un réseau mobile.
   </footer>
-</div>
+</main>
 
 <script>
 'use strict';
@@ -210,7 +338,7 @@ const nombre = n => Number(n).toLocaleString('fr-FR');
 const court = (h, n) => (typeof h === 'string' && h.length > n) ? h.slice(0, n) + '…' : (h == null ? '' : String(h));
 
 const MOTIFS = {
-  ACCEPTE: "Ordre authentique, frais et conforme à la politique : journalisé, puis accepté par le bouchon core banking.",
+  ACCEPTE: "Ordre authentique, frais et conforme à la politique : journalisé, puis accepté par la banque simulée.",
   REGISTRE_INCONNU: "L'identité présentée n'est pas inscrite au registre des partenaires.",
   SIGNATURE_INVALIDE: "La signature ne couvre pas la transcription de cette session.",
   PREUVE_INVALIDE: "La preuve de possession de la clé de session est fausse.",
@@ -218,16 +346,31 @@ const MOTIFS = {
   INTEGRITE_COMPROMISE: "La trame a été modifiée : le déchiffrement authentifié ou le code d'authentification échoue.",
   REJEU_DETECTE: "Le compteur de cette trame a déjà été consommé dans la session.",
   POLITIQUE_REFUSEE: "Le montant dépasse le plafond par ordre fixé par la politique de la passerelle.",
-  CORE_BANKING_REJET: "La passerelle a jugé l'ordre authentique et conforme, l'a journalisé (ACCP) puis transmis ; c'est le bouchon core banking qui l'a refusé, par exemple parce que cette référence a déjà été traitée. Le journal consigne la décision de la passerelle, pas la réponse de la banque.",
+  CORE_BANKING_REJET: "La passerelle a jugé l'ordre authentique et conforme, l'a journalisé (ACCP) puis transmis ; c'est la banque simulée qui l'a refusé, par exemple parce que cette référence a déjà été traitée. Le journal consigne la décision de la passerelle, pas la réponse de la banque.",
   VELOCITE_DEPASSEE: "Trop d'ordres, ou un cumul trop élevé, pour ce partenaire dans la fenêtre glissante de la politique.",
   DOUBLON_IDEMPOTENT: "Relance à l'identique de la dernière trame : le statut initial est renvoyé, sans seconde exécution."
 };
+const TITRES = { rejeu: "Rejeu d'un ordre", alteration: "Altération en transit", intrus: "Partenaire non inscrit", suites: "Négociation falsifiée" };
+const ICONES = {
+  rejeu: '<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/>',
+  alteration: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
+  intrus: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/><path d="M3 3l18 18"/>',
+  suites: '<path d="M4 7h11"/><path d="M4 12h7"/><path d="M4 17h11"/><path d="M17 10l4 4"/><path d="M21 10l-4 4"/>'
+};
+const COCHE = '<path d="M5 12.5l4.5 4.5L19 7.5"/>', CROIX = '<path d="M6 6l12 12"/><path d="M18 6L6 18"/>', BARRE = '<path d="M6 12h12"/>';
 
 function el(balise, classe, texte) {
   const e = document.createElement(balise);
   if (classe) e.className = classe;
   if (texte !== undefined && texte !== null) e.textContent = String(texte);
   return e;
+}
+function svg(chemins) {   // chemins : constantes de ce fichier uniquement, jamais une donnée du serveur
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
+  s.setAttribute('stroke-width', '2.2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+  s.setAttribute('aria-hidden', 'true'); s.innerHTML = chemins;
+  return s;
 }
 function vider(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
 function ajouter(parent, ...enfants) { for (const x of enfants) if (x) parent.appendChild(x); return parent; }
@@ -247,33 +390,82 @@ async function appel(methode, chemin, corps) {
   return { ok: reponse.ok, statut: reponse.status, json, message };
 }
 
-function erreur(cible, message) {
-  const b = el('div', 'resultat erreur');
-  ajouter(b, el('h3', null, "Demande non aboutie"), el('p', null, message));
-  ajouter(vider(cible), b);
+function verdict(classe, signe, titre, texte) {
+  const b = el('div', 'verdict ' + classe), h = el('h3'), rond = el('span', 'signe');
+  rond.appendChild(svg(signe));
+  ajouter(h, rond, el('span', null, titre));
+  ajouter(b, h, texte ? el('p', null, texte) : null);
+  return b;
 }
+function erreur(cible, message) { ajouter(vider(cible), verdict('erreur', CROIX, "Demande non aboutie", message)); }
 function ligne(dl, nom, valeur, mono) {
-  ajouter(dl, el('dt', null, nom), el('dd', mono ? 'mono' : null, valeur));
+  ajouter(dl, ajouter(el('div'), el('dt', null, nom), el('dd', mono ? 'mono' : null, valeur)));
 }
 async function occupe(bouton, travail) {
   bouton.disabled = true;
   try { await travail(); } finally { bouton.disabled = false; }
 }
 
-// ---------- 1. état du service ------------------------------------------------
+// ---------- commande segmentée -------------------------------------------------------
+const onglets = [...document.querySelectorAll('.segments [role="tab"]')], curseur = document.querySelector('.segments .curseur');
+function placerCurseur() {
+  const actif = onglets.find(o => o.getAttribute('aria-selected') === 'true');
+  if (!actif) return;
+  curseur.style.width = actif.offsetWidth + 'px';
+  curseur.style.transform = 'translateX(' + actif.offsetLeft + 'px)';
+}
+function montrer(nom, parClavier) {
+  const cible = onglets.find(o => o.id === 'o-' + nom) || onglets[0];
+  for (const o of onglets) {
+    const choisi = o === cible, volet = $(o.getAttribute('aria-controls'));
+    o.setAttribute('aria-selected', String(choisi));
+    o.tabIndex = choisi ? 0 : -1;
+    volet.hidden = !choisi;
+    volet.classList.toggle('actif', choisi);
+  }
+  placerCurseur();
+  if (parClavier) cible.focus();
+  cible.scrollIntoView({ block: 'nearest', inline: 'center' });
+  const ancre = '#' + cible.id.slice(2);
+  if (location.hash !== ancre) history.replaceState(null, '', ancre);
+  if (cible.id === 'o-journal') chargerJournal();
+}
+onglets.forEach((o, i) => {
+  o.addEventListener('click', () => montrer(o.id.slice(2)));
+  o.addEventListener('keydown', ev => {
+    const pas = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+    if (!pas) return;
+    ev.preventDefault();
+    montrer(onglets[(i + pas + onglets.length) % onglets.length].id.slice(2), true);
+  });
+});
+addEventListener('resize', placerCurseur);
+addEventListener('hashchange', () => montrer(location.hash.slice(1)));
+
+// ---------- service ------------------------------------------------------------------
 let console_ = null;
 function item(dl, nom, contenu) {
   const d = el('div'), dd = el('dd');
   if (contenu instanceof Node) dd.appendChild(contenu); else dd.textContent = String(contenu);
   ajouter(dl, ajouter(d, el('dt', null, nom), dd));
 }
+function voyant(nom, repond) {
+  const v = el('span', 'voyant ' + (repond === true ? 'ok' : repond === false ? 'ko' : ''));
+  v.title = nom + (repond === true ? " : répond" : repond === false ? " : ne répond pas" : " : état inconnu");
+  return ajouter(v, el('i'), document.createTextNode(nom));
+}
 async function chargerEtat() {
   const r = await appel('GET', '/api/v1/etat');
-  const dl = vider($('etat'));
-  if (!r.ok || !r.json) { item(dl, "État", el('span', 'pastille ko', r.message || "Indisponible")); return; }
+  const dl = vider($('etat')), voyants = vider($('voyants'));
+  if (!r.ok || !r.json) {
+    ajouter(voyants, voyant("Passerelle", false), voyant("Banque simulée", false));
+    item(dl, "État", el('span', 'pastille ko', r.message || "Indisponible"));
+    return;
+  }
   const e = r.json, p = e.politique || {};
+  ajouter(voyants, voyant("Passerelle", !!e.passerelleRepond), voyant("Banque simulée", !!e.bouchonRepond));
   item(dl, "Passerelle SFB-AKA", el('span', 'pastille ' + (e.passerelleRepond ? 'ok' : 'ko'), e.passerelleRepond ? "Répond" : "Ne répond pas"));
-  item(dl, "Bouchon core banking", el('span', 'pastille ' + (e.bouchonRepond ? 'ok' : 'ko'), e.bouchonRepond ? "Répond" : "Ne répond pas"));
+  item(dl, "Banque simulée (bouchon)", el('span', 'pastille ' + (e.bouchonRepond ? 'ok' : 'ko'), e.bouchonRepond ? "Répond" : "Ne répond pas"));
   item(dl, "Démarré le", new Date(e.demarreLe).toLocaleString('fr-FR'));
   item(dl, "Version", e.version + " · commit " + court(e.commit, 7).replace('…', ''));
   item(dl, "Étiquettes de rôle", e.etiquettesRole ? "Activées" : "Désactivées");
@@ -289,41 +481,58 @@ function preparerConsole() {
     + nombre(console_.montantMax) + " FCFA, pour que le refus au-dessus du plafond vienne bien de la passerelle.";
   const zone = vider($('scenarios'));
   for (const s of console_.scenarios || []) {
-    const carte = el('div', 'scenario'), bouton = el('button', 'btn second', "Rejouer « " + s.nom + " »"), sortie = el('div');
+    const carte = el('article', 'carte scenario'), haut = el('div', 'haut'), icone = el('span', 'icone'), titres = el('div');
+    const bouton = el('button', 'btn rouge'), sortie = el('div'), attendu = el('div', 'attendu');
+    icone.appendChild(svg(ICONES[s.nom] || CROIX));
+    ajouter(titres, el('h3', null, TITRES[s.nom] || s.nom), el('span', 'ref mono', s.reference));
+    ajouter(haut, icone, titres);
+    ajouter(attendu, document.createTextNode("Rejet attendu"), el('span', 'pastille neutre mono', s.attendu));
     bouton.type = 'button';
+    ajouter(bouton, el('span', 'rond'), document.createTextNode("Rejouer l'attaque"));
     sortie.setAttribute('aria-live', 'polite');
-    const attendu = el('p', 'attendu');
-    ajouter(attendu, document.createTextNode("Rejet attendu : "), el('span', 'mono', s.attendu));
-    ajouter(carte, el('h3', null, s.nom + " · " + s.reference), el('p', null, s.description), attendu, bouton, sortie);
+    ajouter(carte, haut, el('p', null, s.description), attendu, bouton, sortie);
     bouton.addEventListener('click', () => occupe(bouton, () => jouer(s.nom, sortie)));
     zone.appendChild(carte);
   }
 }
 
-// ---------- 2. session --------------------------------------------------------
+// ---------- session ------------------------------------------------------------------
+function chiffre(valeur, legende, fort) {
+  return ajouter(el('div', 'chiffre' + (fort ? ' fort' : '')), el('b', 'nb', valeur), el('span', null, legende));
+}
 async function ouvrirSession() {
   const cible = $('session'), r = await appel('POST', '/api/v1/sessions');
   if (!r.ok || !r.json) { erreur(cible, r.message); return; }
   const s = r.json;
   vider(cible);
-  for (const m of s.messages) {
-    const bloc = el('div', 'message' + (m.nom === 'M2' ? ' retour' : '')), tete = el('header'), table = el('table', 'champs');
-    ajouter(tete, el('b', null, m.nom), el('span', 'sens', m.sens), el('span', 'taille', m.octets + " octets"));
-    for (const c of m.champs) {
-      const tr = el('tr');
-      ajouter(tr, el('td', null, c.nom), el('td', 'lg', c.octets + " o"), el('td', 'hex', c.hex));
-      table.appendChild(tr);
-    }
-    ajouter(cible, ajouter(bloc, tete, table));
-  }
-  const bilan = el('p', 'bilan', s.octetsMessages + " octets de messages + " + s.octetsCadrage + " octets de cadrage = "
-    + s.octetsSurLeFil + " octets sur le fil");
-  ajouter(bilan, el('small', null, "Session " + s.idSession + " établie en " + s.dureeMs.toLocaleString('fr-FR')
+  ajouter(cible, ajouter(el('div', 'voies'), el('span', null, "Plateforme Mobile Money"), el('span', null, "Passerelle")));
+  const plusGrand = Math.max(1, ...s.messages.map(m => m.octets));
+  s.messages.forEach((m, i) => {
+    const retour = m.nom === 'M2', bloc = el('div', 'msg' + (retour ? ' retour' : '')), rang = el('div', 'msg-ligne');
+    const milieu = el('div'), piste = el('div', 'piste'), trait = el('i'), taille = el('div', 'msg-taille nb', m.octets);
+    bloc.style.animationDelay = (i * 0.32) + 's';
+    trait.style.animationDelay = (i * 0.32 + 0.15) + 's';
+    piste.style.width = Math.round(100 * m.octets / plusGrand) + '%';
+    if (retour) piste.style.marginLeft = 'auto';
+    ajouter(piste, trait);
+    ajouter(milieu, el('div', 'msg-sens', m.sens), piste);
+    taille.appendChild(el('small', null, "octets"));
+    ajouter(rang, el('div', 'msg-nom', m.nom), milieu, taille);
+    const champs = el('details', 'champs');
+    champs.appendChild(el('summary', null, "Voir les " + m.champs.length + " champs"));
+    for (const c of m.champs)
+      champs.appendChild(ajouter(el('div', 'champ'), el('span', null, c.nom), el('span', 'lg', c.octets + " o"), el('span', 'hex', c.hex)));
+    ajouter(cible, ajouter(bloc, rang, champs));
+  });
+  const bilan = el('div', 'grille3');
+  bilan.style.marginTop = '16px';
+  ajouter(bilan, chiffre(s.octetsMessages, "octets de messages"), chiffre(s.octetsCadrage, "octets de cadrage"),
+    chiffre(s.octetsSurLeFil, "octets sur le fil", true));
+  ajouter(cible, bilan, el('p', 'sous', "Session " + s.idSession + " établie en " + s.dureeMs.toLocaleString('fr-FR')
     + " ms (mesure de cet essai), puis refermée. Aucune clé de session n'est affichée ni conservée."));
-  cible.appendChild(bilan);
 }
 
-// ---------- 3. ordre ----------------------------------------------------------
+// ---------- ordre --------------------------------------------------------------------
 let dernierOrdre = null, derniereSession = null;
 async function envoyerOrdre(corps) {
   const cible = $('ordre'), r = await appel('POST', '/api/v1/ordres', corps);
@@ -332,9 +541,9 @@ async function envoyerOrdre(corps) {
   dernierOrdre = { montant: a.montant, compteDebiteur: corps.compteDebiteur, compteCrediteur: corps.compteCrediteur, reference: a.reference };
   derniereSession = a.idSession;
   $('btn-renvoi').hidden = false;
-  const b = el('div', 'resultat ' + (a.accepte ? 'accepte' : 'rejete')), dl = el('dl', 'details');
-  ajouter(b, el('h3', null, a.accepte ? "Ordre accepté" : "Ordre rejeté : " + a.motif),
-             el('p', null, MOTIFS[a.motif] || "Motif renvoyé par la passerelle."));
+  const b = verdict(a.accepte ? 'accepte' : 'rejete', a.accepte ? COCHE : BARRE,
+    a.accepte ? "Ordre accepté" : "Ordre rejeté : " + a.motif, MOTIFS[a.motif] || "Motif renvoyé par la passerelle.");
+  const dl = el('dl', 'details');
   ligne(dl, "Montant", nombre(a.montant) + " FCFA");
   ligne(dl, "Référence", a.reference, true);
   ligne(dl, "Session", a.idSession + " · compteur " + a.compteur, true);
@@ -349,22 +558,26 @@ function saisie() {
   return { montant: Number($('montant').value), compteDebiteur: $('debiteur').value.trim(), compteCrediteur: $('crediteur').value.trim() };
 }
 
-// ---------- 4. attaques -------------------------------------------------------
+// ---------- attaques -----------------------------------------------------------------
 async function jouer(nom, sortie) {
   const r = await appel('POST', '/api/v1/attaques/' + encodeURIComponent(nom));
-  if (!r.ok || !r.json) { erreur(sortie, r.message); return; }
-  const i = r.json, b = el('div', 'resultat ' + (i.conforme ? 'accepte' : 'erreur')), dl = el('dl', 'details');
-  ajouter(b, el('span', 'pastille ' + (i.conforme ? 'ok' : 'ko'), i.conforme ? "Conforme" : "Non conforme"));
-  ligne(dl, "Attendu", i.attendu, true);
-  ligne(dl, "Observé", i.observe, true);
-  ajouter(b, dl);
+  const b = el('div', 'issue');
+  if (!r.ok || !r.json) {
+    ajouter(b, ajouter(el('div', 'ligne'), el('span', 'pastille ko', "Demande non aboutie")), el('p', null, r.message));
+    ajouter(vider(sortie), b);
+    return;
+  }
+  const i = r.json, tete = el('div', 'ligne');
+  ajouter(tete, el('span', 'pastille ' + (i.conforme ? 'ok' : 'ko'), i.conforme ? "Attaque neutralisée, conforme" : "Non conforme"),
+    document.createTextNode("Observé"), el('span', 'mono', i.observe));
+  b.appendChild(tete);
   if (MOTIFS[i.observe]) b.appendChild(el('p', null, MOTIFS[i.observe]));
   if (i.remarque) b.appendChild(el('p', null, i.remarque));
   ajouter(vider(sortie), b);
   chargerJournal();
 }
 
-// ---------- journal chaîné ------------------------------------------------------
+// ---------- journal chaîné -----------------------------------------------------------
 const DECISIONS = { ACCP: 'ok', RJCT: 'or', DOUBLON: 'neutre' };
 async function chargerJournal() {
   const r = await appel('GET', '/api/v1/journal?n=20');
@@ -380,7 +593,7 @@ async function chargerJournal() {
   ajouter(etat, el('span', null, "Relu à " + new Date().toLocaleTimeString('fr-FR')));
   vider(corps);
   if (!j.entrees.length) {
-    const td = el('td', 'vide', "Aucune décision pour l'instant : envoyez un ordre ou rejouez une attaque.");
+    const td = el('td', 'rien', "Aucune décision pour l'instant : envoyez un ordre ou rejouez une attaque.");
     td.colSpan = 8;
     corps.appendChild(ajouter(el('tr'), td));
     return;
@@ -388,15 +601,15 @@ async function chargerJournal() {
   for (const e of j.entrees) {
     const tr = el('tr', e.id_session && e.id_session === derniereSession ? 'recente' : null), decision = el('td');
     decision.appendChild(el('span', 'pastille ' + (DECISIONS[e.decision] || 'neutre'), e.decision));
-    ajouter(tr, el('td', null, e.numero), el('td', 'mono', court(String(e.horodatage || '').slice(11), 12).replace('…', '')),
-      el('td', 'mono', e.id_session), el('td', null, e.compteur), decision, el('td', 'mono', e.motif),
+    ajouter(tr, el('td', 'nb', e.numero), el('td', 'mono', court(String(e.horodatage || '').slice(11), 12).replace('…', '')),
+      el('td', 'mono', e.id_session), el('td', 'nb', e.compteur), decision, el('td', 'mono', e.motif),
       el('td', 'mono', court(e.empreinte_precedente, 12)), el('td', 'mono', court(e.empreinte, 12)));
     if (e.chainee === false) tr.lastChild.appendChild(el('span', 'pastille ko', "rupture"));
     corps.appendChild(tr);
   }
 }
 
-// ---------- branchements ---------------------------------------------------------
+// ---------- branchements -------------------------------------------------------------
 $('btn-session').addEventListener('click', ev => occupe(ev.currentTarget, ouvrirSession));
 $('form-ordre').addEventListener('submit', ev => { ev.preventDefault(); occupe($('btn-ordre'), () => envoyerOrdre(saisie())); });
 $('btn-renvoi').addEventListener('click', ev => { if (dernierOrdre) occupe(ev.currentTarget, () => envoyerOrdre(dernierOrdre)); });
@@ -404,6 +617,8 @@ $('btn-valide').addEventListener('click', () => { $('montant').value = 25000; })
 $('btn-plafond').addEventListener('click', () => { $('montant').value = console_ ? Math.round(console_.plafondPolitique * 2.5) : 5000000; });
 
 const visible = () => document.visibilityState === 'visible';
+montrer(location.hash.slice(1) || 'session');
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(placerCurseur);
 chargerEtat();
 chargerJournal();
 setInterval(() => { if (visible()) chargerJournal(); }, 10000);

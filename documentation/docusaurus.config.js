@@ -34,8 +34,8 @@ module.exports = {
     announcementBar: {
       id: 'prototype',
       content: 'Prototype de démonstration issu d\'un travail de recherche. Banque simulée, clés de démonstration. Non destiné à la production.',
-      backgroundColor: '#F6F1E4',
-      textColor: '#3D3320',
+      backgroundColor: '#FBF0D9',
+      textColor: '#7A5410',
       isCloseable: false,
     },
     navbar: {
